@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Border Port Traffic Calendar</title>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f9f9fb; }
+        .container { padding: 15px; max-width: 1800px; margin: auto; }
+        h1 { text-align: center; color: #d63384; font-size: 1.9em; margin: 10px 0 5px; }
+        .subtitle { text-align: center; color: #666; font-size: 0.9em; margin-bottom: 18px; }
+
+        .controls {
+            display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 18px;
+            align-items: center;
+        }
+        select, .checkbox-group {
+            padding: 6px 14px; font-size: 0.95em; border-radius: 6px; 
+            border: 1px solid #ddd; background: white;
+        }
+        .checkbox-group {
+            display: flex; gap: 10px; padding: 6px 10px; max-height: 36px; overflow-y: auto;
+            align-items: center; flex-wrap: wrap;
+        }
+        .checkbox-group label {
+            display: flex; align-items: center; gap: 4px; margin: 0; font-weight: normal;
+            white-space: nowrap; cursor: pointer; font-size: 0.9em;
+        }
+
+        /* Nút Apply */
+        #applyBtn {
+            padding: 8px 18px; font-size: 0.95em; font-weight: bold;
+            background: #d63384; color: white; border: none; border-radius: 6px;
+            cursor: pointer; transition: 0.2s;
+        }
+        #applyBtn:hover { background: #c02373; }
+        #applyBtn:disabled { background: #ccc; cursor: not-allowed; }
+
+        .heatmap-container {
+            overflow-x: auto; overflow-y: hidden;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.07);
+            background: white;
+            padding: 10px;
+            position: relative;
+        }
+        .heatmap { 
+            display: grid; 
+            gap: 2.5px; 
+            background: #e9ecef; 
+            border-radius: 8px;
+            padding: 6px;
+            min-width: fit-content;
+            margin: 0 auto;
+        }
+        .cell { 
+            width: 14px; height: 14px; 
+            border-radius: 3px;
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+        .cell:hover { 
+            transform: scale(2.8); 
+            z-index: 100; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.4);
+            border-radius: 4px;
+        }
+        .cell:hover::after {
+            content: attr(data-tooltip); 
+            position: absolute; top: -36px; left: 50%; transform: translateX(-50%);
+            background: #1a1a1a; color: white; padding: 5px 9px; border-radius: 5px;
+            font-size: 11.5px; white-space: nowrap; z-index: 1000;
+            font-weight: 500;
+        }
+
+        .year-header {
+            background: #495057; color: white; font-weight: bold;
+            font-size: 10.5px; text-align: center; grid-column: span 12;
+            border-radius: 3px; padding: 2px 0;
+        }
+        .port-label {
+            background: #343a40; color: white; font-weight: 600;
+            font-size: 10.5px; padding: 0 8px; text-align: right;
+            min-width: 100px; border-radius: 3px;
+            display: flex; align-items: center; justify-content: flex-end;
+            position: sticky; left: 0; z-index: 50;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .legend {
+            display: flex; align-items: center; justify-content: center; margin: 25px 0; gap: 10px;
+            font-size: 13px; font-weight: 500;
+        }
+        .gradient { 
+            width: 240px; height: 13px; 
+            background: linear-gradient(to right, #f0f0f0, #92eee7ff, #ebe00fff, #ee970cff, #cc0000); 
+            border-radius: 6px; 
+        }
+
+        .loading { text-align: center; color: #d63384; font-style: italic; margin: 40px; font-size: 1.1em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Border Port Traffic Calendar</h1>
+        <p class="subtitle">Tiny squares = monthly volume • Click Apply to update</p>
+
+        <div class="controls">
+            <div>
+                <label for="measureSelect"><strong>Type:</strong></label>
+                <select id="measureSelect"></select>
+            </div>
+
+            <div class="checkbox-group" id="yearCheckboxes">
+                <!-- Checkboxes sẽ được thêm bằng JS -->
+            </div>
+
+            <button id="applyBtn">Apply</button>
+        </div>
+
+        <div class="heatmap-container">
+            <div id="heatmap" class="heatmap"></div>
+        </div>
+
+        <div class="legend">
+            <span>None</span>
+            <div class="gradient"></div>
+            <span>High</span>
+        </div>
+
+        <div id="loading" class="loading">Loading data...</div>
+    </div>
+
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="calendar.js"></script>
+</body>
+</html>
