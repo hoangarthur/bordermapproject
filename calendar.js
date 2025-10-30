@@ -86,6 +86,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }, 50);
             });
 
+            
+
             // Render lần đầu
             renderHeatmap();
             loading.style.display = "none";
