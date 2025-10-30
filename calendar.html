@@ -11,23 +11,37 @@
         .subtitle { text-align: center; color: #666; font-size: 0.9em; margin-bottom: 18px; }
 
         .controls {
-            display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 18px;
+            display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 18px;
             align-items: center;
         }
-        select, .checkbox-group {
+        select {
             padding: 6px 14px; font-size: 0.95em; border-radius: 6px; 
             border: 1px solid #ddd; background: white;
         }
-        .checkbox-group {
-            display: flex; gap: 10px; padding: 6px 10px; max-height: 36px; overflow-y: auto;
-            align-items: center; flex-wrap: wrap;
+
+        .year-range {
+            display: flex; flex-direction: column; gap: 6px; font-size: 0.9em; min-width: 220px;
         }
-        .checkbox-group label {
-            display: flex; align-items: center; gap: 4px; margin: 0; font-weight: normal;
-            white-space: nowrap; cursor: pointer; font-size: 0.9em;
+        .year-range label { font-weight: 600; color: #555; }
+        .slider-container {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .range-slider {
+            -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px;
+            background: #ddd; outline: none;
+        }
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: #d63384; cursor: pointer;
+        }
+        .range-slider::-moz-range-thumb {
+            width: 16px; height: 16px; border-radius: 50%; border: none;
+            background: #d63384; cursor: pointer;
+        }
+        .year-values {
+            font-weight: bold; color: #d63384; min-width: 80px; text-align: center;
         }
 
-        /* Nút Apply */
         #applyBtn {
             padding: 8px 18px; font-size: 0.95em; font-weight: bold;
             background: #d63384; color: white; border: none; border-radius: 6px;
@@ -36,48 +50,45 @@
         #applyBtn:hover { background: #c02373; }
         #applyBtn:disabled { background: #ccc; cursor: not-allowed; }
 
+        .toggle-switch {
+            display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 500;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-switch label {
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+        }
+        .slider {
+            position: relative; width: 38px; height: 20px; background: #ccc;
+            border-radius: 34px; transition: 0.3s;
+        }
+        .slider:before {
+            content: ""; position: absolute; width: 16px; height: 16px;
+            left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.3s;
+        }
+        input:checked + label .slider { background: #d63384; }
+        input:checked + label .slider:before { transform: translateX(18px); }
+        .label-text { color: #555; transition: 0.3s; }
+        input:checked + label .label-text { color: #d63384; font-weight: 600; }
+
         .heatmap-container {
-            overflow-x: auto; overflow-y: hidden;
-            border-radius: 10px;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.07);
-            background: white;
-            padding: 10px;
+            overflow-x: auto; overflow-y: hidden; border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.07); background: white; padding: 10px;
             position: relative;
         }
         .heatmap { 
-            display: grid; 
-            gap: 2.5px; 
-            background: #e9ecef; 
-            border-radius: 8px;
-            padding: 6px;
-            min-width: fit-content;
-            margin: 0 auto;
+            display: grid; gap: 2.5px; background: #e9ecef; border-radius: 8px;
+            padding: 6px; min-width: fit-content; margin: 0 auto;
+            width: 100%; box-sizing: border-box;
         }
         .cell { 
-            width: 14px; height: 14px; 
-            border-radius: 3px;
-            position: relative;
+            width: 14px; height: 14px; border-radius: 3px; position: relative;
             transition: transform 0.2s ease;
         }
-        .cell:hover { 
-            transform: scale(2.8); 
-            z-index: 100; 
-            box-shadow: 0 0 10px rgba(0,0,0,0.4);
-            border-radius: 4px;
-        }
-        .cell:hover::after {
-            content: attr(data-tooltip); 
-            position: absolute; top: -36px; left: 50%; transform: translateX(-50%);
-            background: #1a1a1a; color: white; padding: 5px 9px; border-radius: 5px;
-            font-size: 11.5px; white-space: nowrap; z-index: 1000;
-            font-weight: 500;
-        }
-
-        .year-header {
+        .year-header, .month-header {
             background: #495057; color: white; font-weight: bold;
-            font-size: 10.5px; text-align: center; grid-column: span 12;
-            border-radius: 3px; padding: 2px 0;
+            font-size: 10.5px; text-align: center; border-radius: 3px; padding: 2px 0;
         }
+        .month-header { background: #6c757d; }
         .port-label {
             background: #343a40; color: white; font-weight: 600;
             font-size: 10.5px; padding: 0 8px; text-align: right;
@@ -111,11 +122,24 @@
                 <select id="measureSelect"></select>
             </div>
 
-            <div class="checkbox-group" id="yearCheckboxes">
-                <!-- Checkboxes sẽ được thêm bằng JS -->
+            <div class="year-range">
+                <label>Year Range:</label>
+                <div class="slider-container">
+                    <input type="range" id="yearStart" class="range-slider">
+                    <span id="yearDisplay" class="year-values">1996 – 2025</span>
+                    <input type="range" id="yearEnd" class="range-slider">
+                </div>
             </div>
 
             <button id="applyBtn">Apply</button>
+
+            <div class="toggle-switch">
+                <input type="checkbox" id="viewToggle">
+                <label for="viewToggle">
+                    <span class="slider"></span>
+                    <span class="label-text">Group by Month</span>
+                </label>
+            </div>
         </div>
 
         <div class="heatmap-container">
@@ -135,3 +159,5 @@
     <script src="calendar.js"></script>
 </body>
 </html>
+
+
