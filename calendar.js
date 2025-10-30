@@ -2,13 +2,44 @@ document.addEventListener("DOMContentLoaded", () => {
     const heatmapDiv = document.getElementById("heatmap");
     const loading = document.getElementById("loading");
     const measureSelect = document.getElementById("measureSelect");
-    const yearCheckboxesContainer = document.getElementById("yearCheckboxes");
     const applyBtn = document.getElementById("applyBtn");
+    const viewToggle = document.getElementById("viewToggle");
+    const yearStart = document.getElementById("yearStart");
+    const yearEnd = document.getElementById("yearEnd");
+    const yearDisplay = document.getElementById("yearDisplay");
 
     let data = [], ports = [], years = [], measures = [];
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     let currentMeasure = "Trucks";
     let selectedYears = [];
+    let viewMode = "byYear";
+
+    // Cập nhật hiển thị năm
+    function updateYearDisplay() {
+        const start = parseInt(yearStart.value);
+        const end = parseInt(yearEnd.value);
+        yearDisplay.textContent = `${start} – ${end}`;
+    }
+
+    // Slider events
+    yearStart.addEventListener("input", () => {
+        const start = parseInt(yearStart.value);
+        const end = parseInt(yearEnd.value);
+        if (start > end) yearEnd.value = start;
+        updateYearDisplay();
+    });
+    yearEnd.addEventListener("input", () => {
+        const start = parseInt(yearStart.value);
+        const end = parseInt(yearEnd.value);
+        if (end < start) yearStart.value = end;
+        updateYearDisplay();
+    });
+
+    // Switch
+    viewToggle.addEventListener("change", () => {
+        viewMode = viewToggle.checked ? "byMonth" : "byYear";
+        renderHeatmap();
+    });
 
     Papa.parse('history.csv', {
         download: true,
@@ -29,12 +60,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     };
                 });
 
+            if (raw.length === 0) {
+                loading.textContent = "No data in CSV!";
+                return;
+            }
+
             ports = [...new Set(raw.map(d => d.port))].sort();
             years = [...new Set(raw.map(d => d.year))].sort((a, b) => a - b);
             measures = [...new Set(raw.map(d => d.measure))].sort();
             data = raw;
 
-            // === Dropdown loại phương tiện ===
+            // Cập nhật slider
+            const minYear = Math.min(...years);
+            const maxYear = Math.max(...years);
+            yearStart.min = minYear; yearStart.max = maxYear;
+            yearEnd.min = minYear; yearEnd.max = maxYear;
+            yearStart.value = minYear;
+            yearEnd.value = maxYear;
+            updateYearDisplay();
+
+            // Dropdown
             measures.forEach(m => {
                 const opt = document.createElement('option');
                 opt.value = m; opt.textContent = m;
@@ -42,60 +87,46 @@ document.addEventListener("DOMContentLoaded", () => {
                 measureSelect.appendChild(opt);
             });
 
-            // === Checkbox năm ===
-            years.forEach(year => {
-                const label = document.createElement('label');
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = year;
-                checkbox.checked = true; // Mặc định chọn tất cả
-                label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(` ${year}`));
-                yearCheckboxesContainer.appendChild(label);
-            });
-
-            // Mặc định chọn tất cả năm
-            selectedYears = years.slice();
-
-            if (ports.length === 0) {
-                loading.textContent = "No data!";
-                return;
-            }
-
-            // === NÚT APPLY ===
-            applyBtn.addEventListener('click', () => {
-                currentMeasure = measureSelect.value;
-                selectedYears = Array.from(yearCheckboxesContainer.querySelectorAll('input:checked'))
-                                      .map(cb => parseInt(cb.value));
-
-                if (selectedYears.length === 0) {
-                    alert("Please select at least one year!");
-                    return;
-                }
-
-                applyBtn.disabled = true;
-                applyBtn.textContent = "Updating...";
-                loading.style.display = "block";
-
-                // Dùng setTimeout để tránh block UI
-                setTimeout(() => {
-                    renderHeatmap();
-                    loading.style.display = "none";
-                    applyBtn.disabled = false;
-                    applyBtn.textContent = "Apply";
-                }, 50);
-            });
-
             // Render lần đầu
+            selectedYears = years.slice();
             renderHeatmap();
             loading.style.display = "none";
             applyBtn.disabled = false;
         },
-        error: () => {
-            loading.textContent = "Load failed!";
+        error: (err) => {
+            console.error(err);
+            loading.textContent = "Load failed! Check console.";
         }
     });
 
+    // Apply
+    applyBtn.addEventListener('click', () => {
+        currentMeasure = measureSelect.value;
+        const start = parseInt(yearStart.value);
+        const end = parseInt(yearEnd.value);
+        selectedYears = [];
+        for (let y = start; y <= end; y++) {
+            if (years.includes(y)) selectedYears.push(y);
+        }
+
+        if (selectedYears.length === 0) {
+            alert("No year in selected range!");
+            return;
+        }
+
+        applyBtn.disabled = true;
+        applyBtn.textContent = "Updating...";
+        loading.style.display = "block";
+
+        setTimeout(() => {
+            renderHeatmap();
+            loading.style.display = "none";
+            applyBtn.disabled = false;
+            applyBtn.textContent = "Apply";
+        }, 50);
+    });
+
+    // Render heatmap
     function renderHeatmap() {
         heatmapDiv.innerHTML = '';
 
@@ -105,59 +136,106 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const filtered = data.filter(d => 
-            d.measure === currentMeasure && 
-            selectedYears.includes(d.year)
+            d.measure === currentMeasure && selectedYears.includes(d.year)
         );
 
-        const values = filtered.map(d => d.value).filter(v => v > 0);
+        // Tính min/max
+        let values = [];
+        if (viewMode === "byYear") {
+            values = filtered.map(d => d.value).filter(v => v > 0);
+        } else {
+            const totals = {};
+            filtered.forEach(d => {
+                const key = `${d.port}|${d.month}`;
+                totals[key] = (totals[key] || 0) + d.value;
+            });
+            values = Object.values(totals).filter(v => v > 0);
+        }
         const minVal = values.length > 0 ? Math.min(...values) : 0;
         const maxVal = values.length > 0 ? Math.max(...values) : 1;
 
-        const totalCols = selectedYears.length * 12;
-        heatmapDiv.style.gridTemplateColumns = `110px repeat(${totalCols}, 1fr)`;
+        if (viewMode === "byYear") {
+            const totalCols = selectedYears.length * 12;
+            heatmapDiv.style.gridTemplateColumns = `110px repeat(${totalCols}, 1fr)`;
 
-        // Year headers
-        const yearRow = document.createElement('div');
-        yearRow.style.display = 'contents';
-        yearRow.innerHTML = `<div></div>`;
-        selectedYears.forEach(year => {
-            const cell = document.createElement('div');
-            cell.className = 'year-header';
-            cell.textContent = year;
-            yearRow.appendChild(cell);
-        });
-        heatmapDiv.appendChild(yearRow);
-
-        // Port rows
-        ports.forEach(port => {
-            const label = document.createElement('div');
-            label.className = 'port-label';
-            label.textContent = port;
-            label.title = port;
-            heatmapDiv.appendChild(label);
-
+            const yearRow = document.createElement('div');
+            yearRow.style.display = 'contents';
+            yearRow.innerHTML = `<div></div>`;
             selectedYears.forEach(year => {
-                monthOrder.forEach(month => {
-                    const entry = filtered.find(d => d.port === port && d.year === year && d.month === month);
-                    const value = entry ? entry.value : 0;
+                const cell = document.createElement('div');
+                cell.className = 'year-header';
+                cell.textContent = year;
+                cell.style.gridColumn = 'span 12';
+                yearRow.appendChild(cell);
+            });
+            heatmapDiv.appendChild(yearRow);
 
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.tooltip = `${port} | ${month} ${year} | ${value.toLocaleString()} ${currentMeasure.toLowerCase()}`;
+            ports.forEach(port => {
+                const label = createPortLabel(port);
+                heatmapDiv.appendChild(label);
 
-                    const levels = [ 
-                        '#f0f0f0', // 0: Không có dữ liệu 
-                        '#92eee7ff', // 1: Rất thấp (đỏ nhạt) 
-                        '#ebe00fff', // 2: Trung bình 
-                        '#ee970cff', // 3: Cao 
-                        '#cc0000' // 4: Rất cao (đỏ đậm) 
-                        ];
-                    const level = value === 0 ? 0 : Math.min(Math.floor((value - minVal) / (maxVal - minVal || 1) * 4) + 1, 4);
-                    cell.style.backgroundColor = levels[level];
-
-                    heatmapDiv.appendChild(cell);
+                selectedYears.forEach(year => {
+                    monthOrder.forEach(month => {
+                        const entry = filtered.find(d => d.port === port && d.year === year && d.month === month);
+                        const value = entry ? entry.value : 0;
+                        appendCell(value, `${port} | ${month} ${year} | ${value.toLocaleString()}`, minVal, maxVal);
+                    });
                 });
             });
-        });
+
+        } else {
+            // === GROUP BY MONTH – ĐÃ SỬA LỖI ===
+            heatmapDiv.style.gridTemplateColumns = `110px repeat(12, 1fr)`;
+            heatmapDiv.style.width = "100%";
+
+            const monthRow = document.createElement('div');
+            monthRow.style.display = 'contents';
+            monthRow.innerHTML = `<div></div>`;
+            monthOrder.forEach(month => {
+                const cell = document.createElement('div');
+                cell.className = 'month-header';
+                cell.textContent = month;
+                monthRow.appendChild(cell);
+            });
+            heatmapDiv.appendChild(monthRow);
+
+            const totalByPortMonth = {};
+            filtered.forEach(d => {
+                const key = `${d.port}|${d.month}`;
+                totalByPortMonth[key] = (totalByPortMonth[key] || 0) + d.value;
+            });
+
+            ports.forEach(port => {
+                const label = createPortLabel(port);
+                heatmapDiv.appendChild(label);
+
+                monthOrder.forEach(month => {
+                    const key = `${port}|${month}`;  // ← Sửa ở đây!
+                    const value = totalByPortMonth[key] || 0;
+                    const yearsStr = selectedYears.length > 1 ? ` (${selectedYears.join(', ')})` : ` ${selectedYears[0]}`;
+                    appendCell(value, `${port} | ${month}${yearsStr} | ${value.toLocaleString()}`, minVal, maxVal);
+                });
+            });
+        }
+    }
+
+    function appendCell(value, tooltip, minVal, maxVal) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.tooltip = tooltip;
+
+        const levels = ['#f0f0f0', '#92eee7ff', '#ebe00fff', '#ee970cff', '#cc0000'];
+        const level = value === 0 ? 0 : Math.min(Math.floor((value - minVal) / (maxVal - minVal || 1) * 4) + 1, 4);
+        cell.style.backgroundColor = levels[level];
+
+        heatmapDiv.appendChild(cell);
+    }
+
+    function createPortLabel(port) {
+        const label = document.createElement('div');
+        label.className = 'port-label';
+        label.textContent = port;
+        label.title = port;
+        return label;
     }
 });
