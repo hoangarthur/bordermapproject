@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let selectedYears = [];
     let viewMode = "byYear";
 
-    // Cập nhật hiển thị năm
+    // update year display
     function updateYearDisplay() {
         const start = parseInt(yearStart.value);
         const end = parseInt(yearEnd.value);
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
             measures = [...new Set(raw.map(d => d.measure))].sort();
             data = raw;
 
-            // Cập nhật slider
+            // update slider
             const minYear = Math.min(...years);
             const maxYear = Math.max(...years);
             yearStart.min = minYear; yearStart.max = maxYear;
@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 measureSelect.appendChild(opt);
             });
 
-            // Render lần đầu
+            // Render first time
             selectedYears = years.slice();
             renderHeatmap();
             loading.style.display = "none";
@@ -135,11 +135,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const filtered = data.filter(d => 
+        const filtered = data.filter(d =>
             d.measure === currentMeasure && selectedYears.includes(d.year)
         );
 
-        // Tính min/max
+        // min/max
         let values = [];
         if (viewMode === "byYear") {
             values = filtered.map(d => d.value).filter(v => v > 0);
@@ -157,6 +157,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (viewMode === "byYear") {
             const totalCols = selectedYears.length * 12;
             heatmapDiv.style.gridTemplateColumns = `110px repeat(${totalCols}, 1fr)`;
+            heatmapDiv.style.gridAutoRows = "16px";
+
 
             const yearRow = document.createElement('div');
             yearRow.style.display = 'contents';
@@ -184,13 +186,13 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
         } else {
-            // === GROUP BY MONTH – ĐÃ SỬA LỖI ===
+            //group by month
             heatmapDiv.style.gridTemplateColumns = `110px repeat(12, 1fr)`;
             heatmapDiv.style.width = "100%";
 
             const monthRow = document.createElement('div');
             monthRow.style.display = 'contents';
-            monthRow.innerHTML = `<div></div>`;
+            monthRow.appendChild(document.createElement('div')); 
             monthOrder.forEach(month => {
                 const cell = document.createElement('div');
                 cell.className = 'month-header';
@@ -210,7 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 heatmapDiv.appendChild(label);
 
                 monthOrder.forEach(month => {
-                    const key = `${port}|${month}`;  // ← Sửa ở đây!
+                    const key = `${port}|${month}`; 
                     const value = totalByPortMonth[key] || 0;
                     const yearsStr = selectedYears.length > 1 ? ` (${selectedYears.join(', ')})` : ` ${selectedYears[0]}`;
                     appendCell(value, `${port} | ${month}${yearsStr} | ${value.toLocaleString()}`, minVal, maxVal);

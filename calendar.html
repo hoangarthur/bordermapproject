@@ -1,163 +1,294 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Border Port Traffic Calendar</title>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f9f9fb; }
-        .container { padding: 15px; max-width: 1800px; margin: auto; }
-        h1 { text-align: center; color: #d63384; font-size: 1.9em; margin: 10px 0 5px; }
-        .subtitle { text-align: center; color: #666; font-size: 0.9em; margin-bottom: 18px; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: #f9f9fb;
+      }
+      .container {
+        padding: 15px;
+        max-width: 1800px;
+        margin: auto;
+      }
+      h1 {
+        text-align: center;
+        color: #d63384;
+        font-size: 1.9em;
+        margin: 10px 0 5px;
+      }
+      .subtitle {
+        text-align: center;
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 18px;
+      }
 
-        .controls {
-            display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 18px;
-            align-items: center;
-        }
-        select {
-            padding: 6px 14px; font-size: 0.95em; border-radius: 6px; 
-            border: 1px solid #ddd; background: white;
-        }
+      .controls {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+        align-items: center;
+      }
+      select {
+        padding: 6px 14px;
+        font-size: 0.95em;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        background: white;
+      }
 
-        .year-range {
-            display: flex; flex-direction: column; gap: 6px; font-size: 0.9em; min-width: 220px;
-        }
-        .year-range label { font-weight: 600; color: #555; }
-        .slider-container {
-            display: flex; align-items: center; gap: 10px;
-        }
-        .range-slider {
-            -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px;
-            background: #ddd; outline: none;
-        }
-        .range-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
-            background: #d63384; cursor: pointer;
-        }
-        .range-slider::-moz-range-thumb {
-            width: 16px; height: 16px; border-radius: 50%; border: none;
-            background: #d63384; cursor: pointer;
-        }
-        .year-values {
-            font-weight: bold; color: #d63384; min-width: 80px; text-align: center;
-        }
+      .year-range {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.9em;
+        min-width: 220px;
+      }
+      .year-range label {
+        font-weight: 600;
+        color: #555;
+      }
+      .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .range-slider {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 6px;
+        border-radius: 5px;
+        background: #ddd;
+        outline: none;
+      }
+      .range-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #d63384;
+        cursor: pointer;
+      }
+      .range-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: none;
+        background: #d63384;
+        cursor: pointer;
+      }
+      .year-values {
+        font-weight: bold;
+        color: #d63384;
+        min-width: 80px;
+        text-align: center;
+      }
 
-        #applyBtn {
-            padding: 8px 18px; font-size: 0.95em; font-weight: bold;
-            background: #d63384; color: white; border: none; border-radius: 6px;
-            cursor: pointer; transition: 0.2s;
-        }
-        #applyBtn:hover { background: #c02373; }
-        #applyBtn:disabled { background: #ccc; cursor: not-allowed; }
+      #applyBtn {
+        padding: 8px 18px;
+        font-size: 0.95em;
+        font-weight: bold;
+        background: #d63384;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      #applyBtn:hover {
+        background: #c02373;
+      }
+      #applyBtn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
 
-        .toggle-switch {
-            display: flex; align-items: center; gap: 8px; font-size: 0.9em; font-weight: 500;
-        }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-switch label {
-            display: flex; align-items: center; gap: 8px; cursor: pointer;
-        }
-        .slider {
-            position: relative; width: 38px; height: 20px; background: #ccc;
-            border-radius: 34px; transition: 0.3s;
-        }
-        .slider:before {
-            content: ""; position: absolute; width: 16px; height: 16px;
-            left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.3s;
-        }
-        input:checked + label .slider { background: #d63384; }
-        input:checked + label .slider:before { transform: translateX(18px); }
-        .label-text { color: #555; transition: 0.3s; }
-        input:checked + label .label-text { color: #d63384; font-weight: 600; }
+      .toggle-switch {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9em;
+        font-weight: 500;
+      }
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .toggle-switch label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+      }
+      .slider {
+        position: relative;
+        width: 38px;
+        height: 20px;
+        background: #ccc;
+        border-radius: 34px;
+        transition: 0.3s;
+      }
+      .slider:before {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        left: 2px;
+        top: 2px;
+        background: white;
+        border-radius: 50%;
+        transition: 0.3s;
+      }
+      input:checked + label .slider {
+        background: #d63384;
+      }
+      input:checked + label .slider:before {
+        transform: translateX(18px);
+      }
+      .label-text {
+        color: #555;
+        transition: 0.3s;
+      }
+      input:checked + label .label-text {
+        color: #d63384;
+        font-weight: 600;
+      }
 
-        .heatmap-container {
-            overflow-x: auto; overflow-y: hidden; border-radius: 10px;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.07); background: white; padding: 10px;
-            position: relative;
-        }
-        .heatmap { 
-            display: grid; gap: 2.5px; background: #e9ecef; border-radius: 8px;
-            padding: 6px; min-width: fit-content; margin: 0 auto;
-            width: 100%; box-sizing: border-box;
-        }
-        .cell { 
-            width: 14px; height: 14px; border-radius: 3px; position: relative;
-            transition: transform 0.2s ease;
-        }
-        .year-header, .month-header {
-            background: #495057; color: white; font-weight: bold;
-            font-size: 10.5px; text-align: center; border-radius: 3px; padding: 2px 0;
-        }
-        .month-header { background: #6c757d; }
-        .port-label {
-            background: #343a40; color: white; font-weight: 600;
-            font-size: 10.5px; padding: 0 8px; text-align: right;
-            min-width: 100px; border-radius: 3px;
-            display: flex; align-items: center; justify-content: flex-end;
-            position: sticky; left: 0; z-index: 50;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-        }
+      .heatmap-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-radius: 10px;
+        box-shadow: 0 3px 15px rgba(0, 0, 0, 0.07);
+        background: white;
+        padding: 10px;
+        position: relative;
+      }
+      .heatmap {
+        display: grid;
+        gap: 0;
+        padding: 0;
+        background: none;
+      }
+      .cell {
+        border: 1px solid #ddd;;
+        box-sizing: border-box;
+      }
+      .year-header,
 
-        .legend {
-            display: flex; align-items: center; justify-content: center; margin: 25px 0; gap: 10px;
-            font-size: 13px; font-weight: 500;
-        }
-        .gradient { 
-            width: 240px; height: 13px; 
-            background: linear-gradient(to right, #f0f0f0, #92eee7ff, #ebe00fff, #ee970cff, #cc0000); 
-            border-radius: 6px; 
-        }
+.month-header {
+  border: 1px solid #ccc;  
+  background-color: #f7f7f7; 
+  text-align: center;
+  font-weight: 600;
+}
+      .month-header {
+        background: #6c757d;
+      }
+      .port-label {
+        background: #343a40;
+        color: white;
+        font-weight: 600;
+        font-size: 10.5px;
+        padding: 0 8px;
+        text-align: right;
+        min-width: 100px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        position: sticky;
+        left: 0;
+        z-index: 50;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+      }
 
-        .loading { text-align: center; color: #d63384; font-style: italic; margin: 40px; font-size: 1.1em; }
+      .legend {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 25px 0;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .gradient {
+        width: 240px;
+        height: 13px;
+        background: linear-gradient(
+          to right,
+          #f0f0f0,
+          #92eee7ff,
+          #ebe00fff,
+          #ee970cff,
+          #cc0000
+        );
+        border-radius: 6px;
+      }
+
+      .loading {
+        text-align: center;
+        color: #d63384;
+        font-style: italic;
+        margin: 40px;
+        font-size: 1.1em;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1>Border Port Traffic Calendar</h1>
-        <p class="subtitle">Tiny squares = monthly volume • Click Apply to update</p>
+      <h1>Border Port Traffic Calendar</h1>
+      <p class="subtitle">
+        Tiny squares = monthly volume • Click Apply to update
+      </p>
 
-        <div class="controls">
-            <div>
-                <label for="measureSelect"><strong>Type:</strong></label>
-                <select id="measureSelect"></select>
-            </div>
-
-            <div class="year-range">
-                <label>Year Range:</label>
-                <div class="slider-container">
-                    <input type="range" id="yearStart" class="range-slider">
-                    <span id="yearDisplay" class="year-values">1996 – 2025</span>
-                    <input type="range" id="yearEnd" class="range-slider">
-                </div>
-            </div>
-
-            <button id="applyBtn">Apply</button>
-
-            <div class="toggle-switch">
-                <input type="checkbox" id="viewToggle">
-                <label for="viewToggle">
-                    <span class="slider"></span>
-                    <span class="label-text">Group by Month</span>
-                </label>
-            </div>
+      <div class="controls">
+        <div>
+          <label for="measureSelect"><strong>Type:</strong></label>
+          <select id="measureSelect"></select>
         </div>
 
-        <div class="heatmap-container">
-            <div id="heatmap" class="heatmap"></div>
+        <div class="year-range">
+          <label>Year Range:</label>
+          <div class="slider-container">
+            <input type="range" id="yearStart" class="range-slider" />
+            <span id="yearDisplay" class="year-values">1996 – 2025</span>
+            <input type="range" id="yearEnd" class="range-slider" />
+          </div>
         </div>
 
-        <div class="legend">
-            <span>None</span>
-            <div class="gradient"></div>
-            <span>High</span>
-        </div>
+        <button id="applyBtn">Apply</button>
 
-        <div id="loading" class="loading">Loading data...</div>
+        <div class="toggle-switch">
+          <input type="checkbox" id="viewToggle" />
+          <label for="viewToggle">
+            <span class="slider"></span>
+            <span class="label-text">Group by Month</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="heatmap-container">
+        <div id="heatmap" class="heatmap"></div>
+      </div>
+
+      <div class="legend">
+        <span>None</span>
+        <div class="gradient"></div>
+        <span>High</span>
+      </div>
+
+      <div id="loading" class="loading">Loading data...</div>
     </div>
 
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="calendar.js"></script>
-</body>
+  </body>
 </html>
-
-
