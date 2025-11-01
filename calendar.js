@@ -179,8 +179,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const maxVal = values.length > 0 ? Math.max(...values) : 1;
 
         const totalCols = viewMode === "byYear" ? selectedYears.length * 12 : 12;
-        heatmapDiv.style.gridTemplateColumns = `90px 110px repeat(${totalCols}, 1fr)`; // State | Port | Data
-        heatmapDiv.style.gridAutoRows = "16px";
+        heatmapDiv.style.gridTemplateColumns = `110px 130px repeat(${totalCols}, 1fr)`; // State | Port | Data
+        heatmapDiv.style.gridAutoRows = "20px";
 
         // Header
         const headerRow = document.createElement('div');
@@ -218,6 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
             stateLabel.textContent = state;
             stateLabel.style.gridRow = `span ${rowSpan}`;
             stateLabel.dataset.state = state;
+            stateLabel.style.gridColumn = '1';
             heatmapDiv.appendChild(stateLabel);
 
             // Click để zoom
@@ -250,10 +251,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     // Port label
                     const portLabel = createPortLabel(port);
                     portLabel.style.gridRow = globalRow;
+                    portLabel.style.gridColumn = '2';
                     heatmapDiv.appendChild(portLabel);
 
                     // Đường nối
-                    const y = (globalRow - 1) * 16 + 8;
+                    const y = (globalRow - 1) * 20 + 10;
                     drawLine(svg, 45, y, 145, y, state);
 
                     // Dữ liệu (chỉ tính trong state nếu zoom)
@@ -277,19 +279,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         });
                     }
                 } else {
-                    // Nếu không hiển thị → thêm ô trống để giữ vị trí
-                    const emptyPort = document.createElement('div');
-                    emptyPort.style.gridRow = globalRow;
-                    heatmapDiv.appendChild(emptyPort);
+                    // // Nếu không hiển thị → thêm ô trống để giữ vị trí
+                    // const emptyPort = document.createElement('div');
+                    // emptyPort.style.gridRow = globalRow;
+                    // heatmapDiv.appendChild(emptyPort);
 
-                    // Thêm 12 ô trống cho dữ liệu
-                    const colsPerRow = viewMode === "byYear" ? selectedYears.length * 12 : 12;
-                    for (let i = 0; i < colsPerRow; i++) {
-                        const emptyCell = document.createElement('div');
-                        emptyCell.className = 'cell';
-                        emptyCell.style.backgroundColor = '#f0f0f0';
-                        heatmapDiv.appendChild(emptyCell);
-                    }
+                    // // Thêm 12 ô trống cho dữ liệu
+                    // const colsPerRow = viewMode === "byYear" ? selectedYears.length * 12 : 12;
+                    // for (let i = 0; i < colsPerRow; i++) {
+                    //     const emptyCell = document.createElement('div');
+                    //     emptyCell.className = 'cell';
+                    //     emptyCell.style.backgroundColor = '#f0f0f0';
+                    //     heatmapDiv.appendChild(emptyCell);
+                    // }
                 }
             });
         });
