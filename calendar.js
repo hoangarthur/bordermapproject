@@ -13,7 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentMeasure = "Trucks";
     let selectedYears = [];
     let viewMode = "byYear";
-
+    let states = [], portToState = {}, statePorts = {};
+    let activeState = null;
     // update year display
     function updateYearDisplay() {
         const start = parseInt(yearStart.value);
@@ -59,7 +60,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         value: parseInt(row.Value) || 0
                     };
                 });
-
+            // Group ports by state
+            raw.forEach(d => {
+                if (!portToState[d.port]) {
+                    const rowWithState = results.data.find(r => r["Port Name"]?.trim() === d.port);
+                    const state = rowWithState?.State?.trim() || "Unknown";
+                    portToState[d.port] = state;
+                    if (!statePorts[state]) statePorts[state] = [];
+                    statePorts[state].push(d.port);
+                }
+            });
+            states = Object.keys(statePorts).sort();
             if (raw.length === 0) {
                 loading.textContent = "No data in CSV!";
                 return;
@@ -128,24 +139,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Render heatmap
     function renderHeatmap() {
+        const heatmapDiv = document.getElementById("heatmap");
+        const svg = document.getElementById("connections");
         heatmapDiv.innerHTML = '';
+        svg.innerHTML = '';
+
+        // Reset active
+        document.querySelectorAll('.state-col.active').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.connection-line.active').forEach(el => el.classList.remove('active'));
 
         if (selectedYears.length === 0) {
             heatmapDiv.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #999; padding: 20px;">No year selected.</div>';
             return;
         }
 
-        const filtered = data.filter(d =>
-            d.measure === currentMeasure && selectedYears.includes(d.year)
-        );
+        const filtered = data.filter(d => d.measure === currentMeasure && selectedYears.includes(d.year));
 
-        // min/max
+        // min/max for heatmap
+        // === LỌC DỮ LIỆU THEO STATE (nếu có) ===
+        let displayPorts = ports;
+        if (activeState) {
+            displayPorts = statePorts[activeState] || [];
+        }
+        const filteredForDisplay = filtered.filter(d => displayPorts.includes(d.port));
+
+        // Tính min/max từ filteredForDisplay
         let values = [];
         if (viewMode === "byYear") {
-            values = filtered.map(d => d.value).filter(v => v > 0);
+            values = filteredForDisplay.map(d => d.value).filter(v => v > 0);
         } else {
             const totals = {};
-            filtered.forEach(d => {
+            filteredForDisplay.forEach(d => {
                 const key = `${d.port}|${d.month}`;
                 totals[key] = (totals[key] || 0) + d.value;
             });
@@ -154,71 +178,121 @@ document.addEventListener("DOMContentLoaded", () => {
         const minVal = values.length > 0 ? Math.min(...values) : 0;
         const maxVal = values.length > 0 ? Math.max(...values) : 1;
 
+        const totalCols = viewMode === "byYear" ? selectedYears.length * 12 : 12;
+        heatmapDiv.style.gridTemplateColumns = `90px 110px repeat(${totalCols}, 1fr)`; // State | Port | Data
+        heatmapDiv.style.gridAutoRows = "16px";
+
+        // Header
+        const headerRow = document.createElement('div');
+        headerRow.style.display = 'contents';
+        headerRow.innerHTML = `<div></div><div></div>`;
         if (viewMode === "byYear") {
-            const totalCols = selectedYears.length * 12;
-            heatmapDiv.style.gridTemplateColumns = `110px repeat(${totalCols}, 1fr)`;
-            heatmapDiv.style.gridAutoRows = "16px";
-
-
-            const yearRow = document.createElement('div');
-            yearRow.style.display = 'contents';
-            yearRow.innerHTML = `<div></div>`;
             selectedYears.forEach(year => {
                 const cell = document.createElement('div');
                 cell.className = 'year-header';
                 cell.textContent = year;
                 cell.style.gridColumn = 'span 12';
-                yearRow.appendChild(cell);
+                headerRow.appendChild(cell);
             });
-            heatmapDiv.appendChild(yearRow);
-
-            ports.forEach(port => {
-                const label = createPortLabel(port);
-                heatmapDiv.appendChild(label);
-
-                selectedYears.forEach(year => {
-                    monthOrder.forEach(month => {
-                        const entry = filtered.find(d => d.port === port && d.year === year && d.month === month);
-                        const value = entry ? entry.value : 0;
-                        appendCell(value, `${port} | ${month} ${year} | ${value.toLocaleString()}`, minVal, maxVal);
-                    });
-                });
-            });
-
         } else {
-            //group by month
-            heatmapDiv.style.gridTemplateColumns = `110px repeat(12, 1fr)`;
-            heatmapDiv.style.width = "100%";
-
-            const monthRow = document.createElement('div');
-            monthRow.style.display = 'contents';
-            monthRow.appendChild(document.createElement('div')); 
             monthOrder.forEach(month => {
                 const cell = document.createElement('div');
                 cell.className = 'month-header';
                 cell.textContent = month;
-                monthRow.appendChild(cell);
-            });
-            heatmapDiv.appendChild(monthRow);
-
-            const totalByPortMonth = {};
-            filtered.forEach(d => {
-                const key = `${d.port}|${d.month}`;
-                totalByPortMonth[key] = (totalByPortMonth[key] || 0) + d.value;
-            });
-
-            ports.forEach(port => {
-                const label = createPortLabel(port);
-                heatmapDiv.appendChild(label);
-
-                monthOrder.forEach(month => {
-                    const key = `${port}|${month}`; 
-                    const value = totalByPortMonth[key] || 0;
-                    const yearsStr = selectedYears.length > 1 ? ` (${selectedYears.join(', ')})` : ` ${selectedYears[0]}`;
-                    appendCell(value, `${port} | ${month}${yearsStr} | ${value.toLocaleString()}`, minVal, maxVal);
-                });
+                headerRow.appendChild(cell);
             });
         }
+        heatmapDiv.appendChild(headerRow);
+
+        // Render States + Ports
+        let currentRow = 2;
+        states.forEach(state => {
+            const portsInState = statePorts[state];
+
+            // Tính rowSpan cho state (luôn giữ)
+            const rowSpan = portsInState.length;
+
+            // === TẠO STATE LABEL (luôn hiện) ===
+            const stateLabel = document.createElement('div');
+            stateLabel.className = 'state-col';
+            stateLabel.textContent = state;
+            stateLabel.style.gridRow = `span ${rowSpan}`;
+            stateLabel.dataset.state = state;
+            heatmapDiv.appendChild(stateLabel);
+
+            // Click để zoom
+            stateLabel.onclick = (e) => {
+                e.preventDefault();
+                if (activeState === state) {
+                    activeState = null;
+                    stateLabel.classList.remove('active');
+                } else {
+                    activeState = state;
+                    document.querySelectorAll('.state-col').forEach(el => el.classList.remove('active'));
+                    stateLabel.classList.add('active');
+                }
+                document.querySelectorAll('.connection-line').forEach(line => line.classList.remove('active'));
+                if (activeState) {
+                    document.querySelectorAll(`.connection-line[data-state="${activeState}"]`)
+                        .forEach(line => line.classList.add('active'));
+                }
+                renderHeatmap(); // Vẽ lại
+            };
+
+            // === VẼ PORTS (chỉ vẽ nếu activeState = null hoặc = state) ===
+            const shouldShowPorts = !activeState || activeState === state;
+
+            portsInState.forEach((port, idx) => {
+                const globalRow = getGlobalRowIndex(states.indexOf(state), idx, statePorts);
+
+                // Chỉ thêm port nếu được phép hiển thị
+                if (shouldShowPorts) {
+                    // Port label
+                    const portLabel = createPortLabel(port);
+                    portLabel.style.gridRow = globalRow;
+                    heatmapDiv.appendChild(portLabel);
+
+                    // Đường nối
+                    const y = (globalRow - 1) * 16 + 8;
+                    drawLine(svg, 45, y, 145, y, state);
+
+                    // Dữ liệu (chỉ tính trong state nếu zoom)
+                    if (viewMode === "byYear") {
+                        selectedYears.forEach(year => {
+                            monthOrder.forEach(month => {
+                                const entry = filtered.find(d => d.port === port && d.year === year && d.month === month);
+                                const value = entry ? entry.value : 0;
+                                appendCell(value, `${port} | ${month} ${year} | ${value.toLocaleString()}`, minVal, maxVal);
+                            });
+                        });
+                    } else {
+                        const totals = {};
+                        filtered.filter(d => d.port === port).forEach(d => {
+                            totals[d.month] = (totals[d.month] || 0) + d.value;
+                        });
+                        monthOrder.forEach(month => {
+                            const value = totals[month] || 0;
+                            const yearsStr = selectedYears.length > 1 ? ` (${selectedYears.join(', ')})` : ` ${selectedYears[0]}`;
+                            appendCell(value, `${port} | ${month}${yearsStr} | ${value.toLocaleString()}`, minVal, maxVal);
+                        });
+                    }
+                } else {
+                    // Nếu không hiển thị → thêm ô trống để giữ vị trí
+                    const emptyPort = document.createElement('div');
+                    emptyPort.style.gridRow = globalRow;
+                    heatmapDiv.appendChild(emptyPort);
+
+                    // Thêm 12 ô trống cho dữ liệu
+                    const colsPerRow = viewMode === "byYear" ? selectedYears.length * 12 : 12;
+                    for (let i = 0; i < colsPerRow; i++) {
+                        const emptyCell = document.createElement('div');
+                        emptyCell.className = 'cell';
+                        emptyCell.style.backgroundColor = '#f0f0f0';
+                        heatmapDiv.appendChild(emptyCell);
+                    }
+                }
+            });
+        });
     }
 
     function appendCell(value, tooltip, minVal, maxVal) {
@@ -239,5 +313,23 @@ document.addEventListener("DOMContentLoaded", () => {
         label.textContent = port;
         label.title = port;
         return label;
+    }
+    function getGlobalRowIndex(stateIdx, portIdx, statePorts) {
+        let row = 2; // start after header
+        for (let i = 0; i < stateIdx; i++) {
+            row += statePorts[states[i]].length;
+        }
+        return row + portIdx;
+    }
+
+    function drawLine(svg, x1, y1, x2, y2, state) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", x1);
+        line.setAttribute("y1", y1);
+        line.setAttribute("x2", x2);
+        line.setAttribute("y2", y2);
+        line.setAttribute("class", "connection-line");
+        line.dataset.state = state;
+        svg.appendChild(line);
     }
 });
