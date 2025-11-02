@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const heatmapDiv = document.getElementById("heatmap");
     const loading = document.getElementById("loading");
     const measureSelect = document.getElementById("measureSelect");
+    const sortSelect = document.getElementById("sortSelect");  // NEW
     const applyBtn = document.getElementById("applyBtn");
     const viewToggle = document.getElementById("viewToggle");
     const yearStart = document.getElementById("yearStart");
@@ -11,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let data = [], ports = [], years = [], measures = [];
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     let currentMeasure = "Trucks";
+    let sortMode = "alpha";  // NEW: Track sort mode
     let selectedYears = [];
     let viewMode = "byYear";
     let states = [], portToState = {}, statePorts = {};
@@ -34,6 +36,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const end = parseInt(yearEnd.value);
         if (end < start) yearStart.value = end;
         updateYearDisplay();
+    });
+
+    // NEW: Sort select listener (re-render immediately)
+    sortSelect.addEventListener("change", () => {
+        sortMode = sortSelect.value;
+        renderHeatmap();
     });
 
     // Switch
@@ -97,6 +105,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (m === "Trucks") opt.selected = true;
                 measureSelect.appendChild(opt);
             });
+            // NEW: Add "All Types of Vehicle" option (synthetic total across all measures)
+            const allOpt = document.createElement('option');
+            allOpt.value = "All Vehicles";
+            allOpt.textContent = "All Types of Vehicle";
+            measureSelect.insertBefore(allOpt, measureSelect.firstChild);  // Add at top for prominence
 
             // Render first time
             selectedYears = years.slice();
@@ -137,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 50);
     });
 
-    // Render heatmap
+    // Render heatmap (UPDATED: Sort portsInState per state)
     function renderHeatmap() {
         const heatmapDiv = document.getElementById("heatmap");
         const svg = document.getElementById("connections");
@@ -153,7 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const filtered = data.filter(d => d.measure === currentMeasure && selectedYears.includes(d.year));
+        // UPDATED: Filter data (ignore measure if "All Vehicles" is selected)
+        const filtered = data.filter(d => 
+            (currentMeasure === "All Vehicles" || d.measure === currentMeasure) && 
+            selectedYears.includes(d.year)
+        );
 
         // min/max for heatmap
         // === LỌC DỮ LIỆU THEO STATE (nếu có) ===
@@ -163,10 +180,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const filteredForDisplay = filtered.filter(d => displayPorts.includes(d.port));
 
-        // Tính min/max từ filteredForDisplay
+        // Tính min/max từ filteredForDisplay (UPDATED: Compute summed cell values for "byYear")
         let values = [];
         if (viewMode === "byYear") {
-            values = filteredForDisplay.map(d => d.value).filter(v => v > 0);
+            // NEW: Sum per cell for min/max calculation
+            const cellValues = [];
+            displayPorts.forEach(port => {
+                selectedYears.forEach(year => {
+                    monthOrder.forEach(month => {
+                        let sum = 0;
+                        filteredForDisplay.filter(d => d.port === port && d.year === year && d.month === month).forEach(d => sum += d.value);
+                        cellValues.push(sum);
+                    });
+                });
+            });
+            values = cellValues.filter(v => v > 0);
         } else {
             const totals = {};
             filteredForDisplay.forEach(d => {
@@ -208,10 +236,26 @@ document.addEventListener("DOMContentLoaded", () => {
         // Render States + Ports
         let currentRow = 2;
         states.forEach(state => {
-            const portsInState = statePorts[state];
+            let portsInState = [...statePorts[state]];  // NEW: Copy for sorting
 
-            // Tính rowSpan cho state (luôn giữ)
-            const rowSpan = portsInState.length;
+            // NEW: Sort portsInState by total traffic (within state)
+            if (sortMode !== "alpha") {
+                // Compute totals for ports in this state (respects filters)
+                const portTotals = {};
+                filtered.filter(d => portsInState.includes(d.port)).forEach(d => {
+                    portTotals[d.port] = (portTotals[d.port] || 0) + d.value;
+                });
+                // Sort
+                portsInState.sort((a, b) => {
+                    const ta = portTotals[a] || 0;
+                    const tb = portTotals[b] || 0;
+                    return sortMode === "high-low" ? tb - ta : ta - tb;
+                });
+            } else {
+                portsInState.sort();  // Alphabetical
+            }
+
+            const rowSpan = portsInState.length;  // Use sorted length (same as original)
 
             // === TẠO STATE LABEL (luôn hiện) ===
             const stateLabel = document.createElement('div');
@@ -244,7 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // === VẼ PORTS (chỉ vẽ nếu activeState = null hoặc = state) ===
             const shouldShowPorts = !activeState || activeState === state;
 
-            portsInState.forEach((port, idx) => {
+            portsInState.forEach((port, idx) => {  // UPDATED: Use sorted portsInState
                 const globalRow = getGlobalRowIndex(states.indexOf(state), idx, statePorts);
 
                 // Chỉ thêm port nếu được phép hiển thị
@@ -261,10 +305,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     // Dữ liệu (chỉ tính trong state nếu zoom)
                     if (viewMode === "byYear") {
+                        // UPDATED: Sum over measures for each cell
                         selectedYears.forEach(year => {
                             monthOrder.forEach(month => {
-                                const entry = filtered.find(d => d.port === port && d.year === year && d.month === month);
-                                const value = entry ? entry.value : 0;
+                                let value = 0;
+                                filtered.filter(d => d.port === port && d.year === year && d.month === month).forEach(d => value += d.value);
                                 appendCell(value, `${port} | ${month} ${year} | ${value.toLocaleString()}`, minVal, maxVal);
                             });
                         });
@@ -279,20 +324,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             appendCell(value, `${port} | ${month}${yearsStr} | ${value.toLocaleString()}`, minVal, maxVal);
                         });
                     }
-                } else {
-                    // // Nếu không hiển thị → thêm ô trống để giữ vị trí
-                    // const emptyPort = document.createElement('div');
-                    // emptyPort.style.gridRow = globalRow;
-                    // heatmapDiv.appendChild(emptyPort);
-
-                    // // Thêm 12 ô trống cho dữ liệu
-                    // const colsPerRow = viewMode === "byYear" ? selectedYears.length * 12 : 12;
-                    // for (let i = 0; i < colsPerRow; i++) {
-                    //     const emptyCell = document.createElement('div');
-                    //     emptyCell.className = 'cell';
-                    //     emptyCell.style.backgroundColor = '#f0f0f0';
-                    //     heatmapDiv.appendChild(emptyCell);
-                    // }
                 }
             });
         });

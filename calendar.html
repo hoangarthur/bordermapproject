@@ -320,6 +320,15 @@
           <label for="measureSelect"><strong>Type:</strong></label>
           <select id="measureSelect"></select>
         </div>
+        <!-- NEW: Sort Ports Select -->
+        <div>
+          <label for="sortSelect"><strong>Sort Ports:</strong></label>
+          <select id="sortSelect">
+            <option value="alpha">Default</option>
+            <option value="high-low">High to Low</option>
+            <option value="low-high">Low to High</option>
+          </select>
+        </div>
 
         <div class="year-range">
           <label>Year Range:</label>
@@ -339,6 +348,12 @@
             <span class="label-text">Group by Month</span>
           </label>
         </div>
+      </div>
+
+      <div class="legend">
+        <span>None</span>
+        <div class="gradient"></div>
+        <span>High</span>
       </div>
 
       <div class="heatmap-container">
@@ -362,12 +377,7 @@
         </div>
       </div>
 
-      <div class="legend">
-        <span>None</span>
-        <div class="gradient"></div>
-        <span>High</span>
-      </div>
-
+      
       <div id="loading" class="loading">Loading data...</div>
     </div>
 
@@ -375,3 +385,4 @@
     <script src="calendar.js"></script>
   </body>
 </html>
+
