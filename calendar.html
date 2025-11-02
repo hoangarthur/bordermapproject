@@ -181,26 +181,27 @@
       /* Cột State (ngoài cùng trái) */
       .state-col {
         position: sticky;
-        left: 0;
+        left: 80px;
         z-index: 70;
-        background: #1a1a2e;
-        color: #fff;
-        font-weight: 700;
-        font-size: 11px;
-        padding: 0 10px;
+        background: transparent !important;
+        color: #080707ff;
+        font-weight: 800;
+        font-size: 12px;
+        padding: 0 px;
         text-align: right;
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        min-width: 90px;
+        min-width: 110px;
         cursor: pointer;
+        border-right: 2px solid #000000ff;
         transition: all 0.2s;
-        border-right: 3px solid #16213e;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
       }
       .state-col:hover,
       .state-col.active {
-        background: #e91e63 !important;
-        font-weight: 800;
+        background: rgba(233, 30, 99, 0.25) !important;
+        font-weight: 900;
       }
 
       /* Port label (cột thứ 2) */
@@ -224,7 +225,7 @@
 
       /* Đường nối */
       .connection-line {
-        stroke: #888;
+        stroke: #111111ff;
         stroke-width: 1.8;
         opacity: 0.6;
         transition: all 0.3s ease;
@@ -257,6 +258,7 @@
         text-align: right;
         min-width: 100px;
         border-radius: 3px;
+        border-right: 0px solid #949494ff;
         display: flex;
         align-items: center;
         justify-content: flex-end;
@@ -305,6 +307,31 @@
       .connection-line.active {
         stroke: #e91e63;
         stroke-width: 3;
+      }
+      .region-col {
+        position: sticky;
+        left: 0;
+        z-index: 80;
+        background: transparent !important;
+        color: #070000ff;
+        font-weight: 800;
+        font-size: 12px;
+        padding: 0 10px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 60px;
+        cursor: pointer;
+        border-right: 0px solid #444;
+        border-left: 0px solid #323232ff;
+        transition: all 0.2s;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+      }
+      .region-col:hover,
+      .region-col.active {
+        background: rgba(214, 51, 132, 0.2) !important;
+        font-weight: 900;
       }
     </style>
   </head>
@@ -377,7 +404,6 @@
         </div>
       </div>
 
-      
       <div id="loading" class="loading">Loading data...</div>
     </div>
 
@@ -385,4 +411,3 @@
     <script src="calendar.js"></script>
   </body>
 </html>
-
