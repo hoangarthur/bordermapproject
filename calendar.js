@@ -7,53 +7,52 @@
  * - Interactive heatmap with year/month view
  * - Filter by measure (Trucks, Cars, etc.)
  * - Sort ports by name or traffic volume
- * - Zoom into Region/State
- * - Dynamic SVG connection lines
+ * - Zoom into Region/State with SVG connection lines
+ * - Responsive grid layout with color intensity
  * 
- * Data Source: history.csv (Port Name, Date: "Jan 2020", Value, Measure, State)
+ * Data Source: history.csv
+ *   Columns: Port Name, Date ("Jan 2020"), Value, Measure, State
  * 
  * Libraries:
- * - Papa Parse: CSV parsing[](https://www.papaparse.com)
+ * - Papa Parse v5+: CSV parsing[](https://www.papaparse.com)
  * 
- * Author: [Your Name]
- * Version: 1.0
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-    // DOM Elements
-    const heatmapDiv = document.getElementById("heatmap"); // Heatmap container
-    const loading = document.getElementById("loading"); // Loading indicator
-    const measureSelect = document.getElementById("measureSelect"); // Measure dropdown
-    const sortSelect = document.getElementById("sortSelect"); // Sort mode selector
-    const applyBtn = document.getElementById("applyBtn"); // Apply filters button
-    const viewToggle = document.getElementById("viewToggle"); // Toggle: Year vs Month view
-    const yearStart = document.getElementById("yearStart"); // Start year slider
-    const yearEnd = document.getElementById("yearEnd"); // End year slider
-    const yearDisplay = document.getElementById("yearDisplay"); // Year range display
-    const svg = document.getElementById("connections"); // SVG for connection lines
+    // === DOM Elements ===
+    const heatmapDiv = document.getElementById("heatmap");       // Main heatmap container
+    const loading = document.getElementById("loading");         // Loading message
+    const measureSelect = document.getElementById("measureSelect"); // Measure filter
+    const sortSelect = document.getElementById("sortSelect");   // Sort order
+    const applyBtn = document.getElementById("applyBtn");       // Apply button
+    const viewToggle = document.getElementById("viewToggle");   // Toggle: Year / Month view
+    const yearStart = document.getElementById("yearStart");     // Start year slider
+    const yearEnd = document.getElementById("yearEnd");         // End year slider
+    const yearDisplay = document.getElementById("yearDisplay"); // Year range text
+    const svg = document.getElementById("connections");         // SVG for connection lines
 
-    // Data Storage
+    // === Data Containers ===
     let data = [], ports = [], years = [], measures = [];
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let currentMeasure = "Trucks"; // Current selected measure
-    let sortMode = "alpha"; // Sort: "alpha", "high-low", "low-high"
-    let selectedYears = []; // Filtered years
-    let viewMode = "byYear"; // View: "byYear" or "byMonth"
-    let states = [], portToState = {}, statePorts = {}; // State-Port mapping
-    let regions = [], regionToStates = {}, stateToRegionMap = {}; // Region-State mapping
+    let currentMeasure = "Trucks";          // Current selected measure
+    let sortMode = "alpha";                 // Sort: "alpha", "high-low", "low-high"
+    let selectedYears = [];                 // Filtered years
+    let viewMode = "byYear";                // View: "byYear" or "byMonth"
+    let states = [], portToState = {}, statePorts = {}; // State → Ports mapping
+    let regions = [], regionToStates = {}, stateToRegionMap = {}; // Region → States
     let activeRegion = null, activeState = null; // Zoom state
 
-    // Cache for performance
+    // === Performance Cache ===
     let cachedData = null;
 
-    // === Update year range display ===
+    // === Update year display text ===
     function updateYearDisplay() {
         const start = parseInt(yearStart.value);
         const end = parseInt(yearEnd.value);
         yearDisplay.textContent = `${start} – ${end}`;
     }
 
-    // === Year slider synchronization ===
+    // === Year slider sync ===
     yearStart.addEventListener("input", () => {
         const start = parseInt(yearStart.value);
         const end = parseInt(yearEnd.value);
@@ -68,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateYearDisplay();
     });
 
-    // === Sort & View Mode Change ===
+    // === Sort & View Toggle ===
     sortSelect.addEventListener("change", () => {
         sortMode = sortSelect.value;
         renderHeatmap();
@@ -79,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderHeatmap();
     });
 
-    // === LOAD DATA USING PAPA PARSE ===
+    // === LOAD CSV DATA (Papa Parse) ===
     Papa.parse('history.csv', {
         download: true,
         header: true,
@@ -98,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     };
                 });
 
-            // Map ports to states
+            // === Map Ports to States ===
             raw.forEach(d => {
                 if (!portToState[d.port]) {
                     const rowWithState = results.data.find(r => r["Port Name"]?.trim() === d.port);
@@ -115,13 +114,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Extract unique values
+            // === Extract unique values ===
             ports = [...new Set(raw.map(d => d.port))].sort();
             years = [...new Set(raw.map(d => d.year))].sort((a, b) => a - b);
             measures = [...new Set(raw.map(d => d.measure))].sort();
             data = raw;
 
-            // === MAP STATES TO REGIONS (U.S. Census Bureau Regions) ===
+            // === Map States to Regions (U.S. Census Bureau) ===
             const stateToRegion = {
                 "Alaska": "Pacific", "California": "Pacific", "Washington": "Pacific",
                 "Arizona": "West", "Idaho": "West", "Montana": "West", "New Mexico": "West",
@@ -143,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             regions = [...new Set(regions)].sort();
 
-            // === Initialize year sliders ===
+            // === Setup year sliders ===
             const minYear = Math.min(...years);
             const maxYear = Math.max(...years);
             yearStart.min = minYear; yearStart.max = maxYear;
@@ -199,12 +198,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 50);
     });
 
-    // === Generate cache key for current filter state ===
+    // === Generate unique cache key ===
     function getFilterKey() {
         return `${currentMeasure}|${selectedYears.join(',')}|${activeRegion || ''}|${activeState || ''}|${viewMode}|${sortMode}`;
     }
 
-    // === Preprocess data based on filters ===
+    // === Preprocess filtered data ===
     function preprocessData() {
         let displayPorts = ports;
         if (activeRegion) {
@@ -237,7 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return { filteredMap, displayPorts, minVal, maxVal, portTotals };
     }
 
-    // === RENDER HEATMAP ===
+    // === RENDER HEATMAP (Main Function) ===
     function renderHeatmap() {
         const filterKey = getFilterKey();
         if (!cachedData || cachedData.key !== filterKey) {
@@ -246,6 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const { filteredMap, minVal, maxVal, portTotals } = cachedData;
 
+        // Clear previous content
         heatmapDiv.innerHTML = '';
         svg.innerHTML = '';
         document.querySelectorAll('.region-col.active, .state-col.active, .connection-line.active')
@@ -256,7 +256,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // === Calculate total data columns ===
         const totalCols = viewMode === "byYear" ? selectedYears.length * 12 : 12;
+
+        // === SET GRID ONCE ONLY 
         heatmapDiv.style.gridTemplateColumns = `80px 110px 150px repeat(${totalCols}, 1fr)`;
         heatmapDiv.style.gridAutoRows = "20px";
 
@@ -266,12 +269,13 @@ document.addEventListener("DOMContentLoaded", () => {
         header.innerHTML = `<div></div><div></div><div></div>`;
         fragment.appendChild(header);
 
-        // Year or Month headers
+        // === Year or Month headers ===
         if (viewMode === "byYear") {
             selectedYears.forEach(year => {
                 const cell = document.createElement('div');
                 cell.className = 'year-header';
                 cell.textContent = year;
+                cell.style.gridRow = '2';
                 cell.style.gridColumn = 'span 12';
                 fragment.appendChild(cell);
             });
@@ -280,6 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const cell = document.createElement('div');
                 cell.className = 'month-header';
                 cell.textContent = month;
+                cell.style.gridRow = '2';
                 fragment.appendChild(cell);
             });
         }
@@ -290,13 +295,15 @@ document.addEventListener("DOMContentLoaded", () => {
         regions.forEach(region => {
             const statesInRegion = regionToStates[region] || [];
             const shouldShowRegion = !activeRegion || activeRegion === region;
-            let totalRows = shouldShowRegion ? statesInRegion.reduce((sum, s) => sum + (statePorts[s]?.length || 0), 0) : 1;
+            const regionRowSpan = shouldShowRegion
+                ? statesInRegion.reduce((sum, s) => sum + (statePorts[s]?.length || 0), 0)
+                : 1;
 
-            // Region Label (click to zoom)
+            // === Region Label ===
             const regionLabel = document.createElement('div');
             regionLabel.className = 'region-col';
             regionLabel.textContent = region;
-            regionLabel.style.gridRow = `span ${totalRows}`;
+            regionLabel.style.gridRow = `span ${regionRowSpan}`;
             regionLabel.style.gridColumn = '1';
             regionLabel.style.cursor = 'pointer';
             if (activeRegion === region) regionLabel.classList.add('active');
@@ -310,8 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderHeatmap();
             };
 
-            // Calculate center Y of region for line connection
-            const regionRowSpan = statesInRegion.reduce((sum, s) => sum + (statePorts[s]?.length || 0), 0);
+            // === Region center Y for line ===
             const regionCenterY = (currentRow - 1) * 20 + (regionRowSpan * 20 / 2) - 10;
             const regionRightX = 80;
 
@@ -320,7 +326,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (shouldShowRegion) {
                 statesInRegion.forEach(state => {
                     let portsInState = [...(statePorts[state] || [])];
-                    // Sort ports
+
+                    // === Sort ports ===
                     if (sortMode !== "alpha") {
                         portsInState.sort((a, b) => {
                             const ta = portTotals[a] || 0;
@@ -334,11 +341,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const rowSpan = portsInState.length;
                     const shouldShowState = !activeState || activeState === state;
 
-                    // State center Y
+                    // === State center Y ===
                     const stateCenterY = (stateStartRow - 1) * 20 + (rowSpan * 20 / 2) - 10;
                     const stateRightX = 190;
 
-                    // State Label
+                    // === State Label ===
                     const stateLabel = document.createElement('div');
                     stateLabel.className = 'state-col';
                     stateLabel.textContent = state;
@@ -355,7 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         renderHeatmap();
                     };
 
-                    // Draw line: Region → State
+                    // === Line: Region → State ===
                     drawLine(svg, regionRightX, regionCenterY, stateRightX, stateCenterY, `region-${region}`);
 
                     if (shouldShowState) {
@@ -364,19 +371,19 @@ document.addEventListener("DOMContentLoaded", () => {
                             const portY = (row - 1) * 20 + 10;
                             const portRightX = 340;
 
-                            // Port label
+                            // === Port Label ===
                             const portLabel = createPortLabel(port);
                             portLabel.style.gridRow = row;
                             portLabel.style.gridColumn = '3';
                             fragment.appendChild(portLabel);
 
-                            // Draw line: State → Port
+                            // === Line: State → Port ===
                             drawLine(svg, stateRightX, stateCenterY, portRightX, portY, `state-${state}`);
 
-                            // Draw line: Port → Data columns
+                            // === Line: Port → Data ===
                             drawLine(svg, 490, portY, 520, portY, `port-${port}`);
 
-                            // Render data cells
+                            // === Data Cells ===
                             let col = 4;
                             if (viewMode === "byYear") {
                                 selectedYears.forEach(year => {
@@ -408,7 +415,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         heatmapDiv.appendChild(fragment);
 
-        // Highlight active connections
+        // === Highlight active connections ===
         if (activeRegion) {
             document.querySelectorAll(`.connection-line[data-state^="region-${activeRegion}"]`)
                 .forEach(l => l.classList.add('active'));
@@ -421,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // === HELPER FUNCTIONS ===
 
-    // Append heatmap cell with color based on value
+    // Append heatmap cell with color scale
     function appendCell(fragment, value, tooltip, minVal, maxVal, col = null) {
         const cell = document.createElement('div');
         cell.className = 'cell';
@@ -434,7 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fragment.appendChild(cell);
     }
 
-    // Create port label element
+    // Create port label
     function createPortLabel(port) {
         const label = document.createElement('div');
         label.className = 'port-label';
@@ -443,7 +450,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return label;
     }
 
-    // Draw SVG line with data attribute
+    // Draw SVG connection line
     function drawLine(svg, x1, y1, x2, y2, dataState) {
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("x1", x1);
