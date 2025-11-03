@@ -1,3 +1,22 @@
+/**
+ * calendar.js
+ * Border Port Traffic Heatmap Visualization
+ * Hierarchy: Region → State → Port
+ * 
+ * Features:
+ * - Interactive heatmap with year/month view
+ * - Filter by measure (Trucks, Cars, etc.)
+ * - Sort ports by name or traffic volume
+ * - Zoom into Region/State with SVG connection lines
+ * - Responsive grid layout with color intensity
+ * 
+ * Data Source: history.csv
+ *   Columns: Port Name, Date ("Jan 2020"), Value, Measure, State
+ * 
+ * Libraries:
+ * - Papa Parse v5+: CSV parsing[](https://www.papaparse.com)
+ * 
+ */
 document.addEventListener("DOMContentLoaded", () => {
     // === DOM Elements ===
     const heatmapDiv = document.getElementById("heatmap");       // Main heatmap container
