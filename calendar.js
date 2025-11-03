@@ -440,6 +440,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         heatmapDiv.appendChild(fragment);
+        const firstLegend = document.querySelector('.legend'); // First legend (color scale)
+if (firstLegend) {
+  const noneSpan = firstLegend.querySelector('span:first-child');
+  const highSpan = firstLegend.querySelector('span:last-child');
+  if (noneSpan && highSpan && maxVal > 0) {
+    noneSpan.textContent = `None (0)`;
+    highSpan.textContent = `High (${maxVal.toLocaleString()})`;
+  } else if (maxVal === 0) {
+    noneSpan.textContent = `No Data`;
+    highSpan.textContent = `No Data`;
+  }
+}
     }
 
     // === HELPER FUNCTIONS ===
