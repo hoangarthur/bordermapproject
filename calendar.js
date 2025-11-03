@@ -19,7 +19,7 @@
  * - CSS Grid for layout
  * - Tooltip for cell details
  * - ChatGPT for code assistance
- * - Grok for rendering optimization\
+ * - Grok for rendering optimization
  * 
  *How to run file:
     * 1. Host files on a local server (e.g., using Live Server in VSCode) or run the command: 
