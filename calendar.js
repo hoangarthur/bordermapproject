@@ -15,7 +15,16 @@
  * 
  * Libraries:
  * - Papa Parse v5+: CSV parsing[](https://www.papaparse.com)
+ * - Vanilla JS (ES6+)is used for DOM manipulation
+ * - CSS Grid for layout
+ * - Tooltip for cell details
+ * - ChatGPT for code assistance
+ * - Grok for rendering optimization\
  * 
+ *How to run file:
+    * 1. Host files on a local server (e.g., using Live Server in VSCode) or run the command: 
+    * python -m http.server 8000
+    * 2. Open browser and navigate to http://localhost:8000/lineChart.html
  */
 document.addEventListener("DOMContentLoaded", () => {
     // === DOM Elements ===
