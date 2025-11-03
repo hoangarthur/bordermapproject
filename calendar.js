@@ -1,23 +1,3 @@
-/**
- * calendar.js
- * Border Port Traffic Heatmap Visualization
- * Hierarchy: Region → State → Port
- * 
- * Features:
- * - Interactive heatmap with year/month view
- * - Filter by measure (Trucks, Cars, etc.)
- * - Sort ports by name or traffic volume
- * - Zoom into Region/State with SVG connection lines
- * - Responsive grid layout with color intensity
- * 
- * Data Source: history.csv
- *   Columns: Port Name, Date ("Jan 2020"), Value, Measure, State
- * 
- * Libraries:
- * - Papa Parse v5+: CSV parsing[](https://www.papaparse.com)
- * 
- */
-
 document.addEventListener("DOMContentLoaded", () => {
     // === DOM Elements ===
     const heatmapDiv = document.getElementById("heatmap");       // Main heatmap container
@@ -29,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const yearStart = document.getElementById("yearStart");     // Start year slider
     const yearEnd = document.getElementById("yearEnd");         // End year slider
     const yearDisplay = document.getElementById("yearDisplay"); // Year range text
-    const svg = document.getElementById("connections");         // SVG for connection lines
 
     // === Data Containers ===
     let data = [], ports = [], years = [], measures = [];
@@ -39,11 +18,31 @@ document.addEventListener("DOMContentLoaded", () => {
     let selectedYears = [];                 // Filtered years
     let viewMode = "byYear";                // View: "byYear" or "byMonth"
     let states = [], portToState = {}, statePorts = {}; // State → Ports mapping
+    let portToBorder = {}; // Port → Border mapping
     let regions = [], regionToStates = {}, stateToRegionMap = {}; // Region → States
     let activeRegion = null, activeState = null; // Zoom state
 
     // === Performance Cache ===
     let cachedData = null;
+
+    const regionColors = {
+        "Pacific": "#4dabf7",
+        "West": "#63e6be",
+        "Northeast": "#ffd43b",
+        "Midwest": "#ffa8a8",
+        "South": "#b197fc",
+        "Unknown": "#ced4da"
+    };
+
+    // === Contrast color helper ===
+    function getContrastColor(bgColor) {
+        const hex = bgColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.5 ? '#000' : '#fff';
+    }
 
     // === Update year display text ===
     function updateYearDisplay() {
@@ -97,12 +96,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     };
                 });
 
-            // === Map Ports to States ===
+            // === Map Ports to States and Borders ===
             raw.forEach(d => {
                 if (!portToState[d.port]) {
                     const rowWithState = results.data.find(r => r["Port Name"]?.trim() === d.port);
                     const state = rowWithState?.State?.trim() || "Unknown";
+                    const border = rowWithState?.Border?.trim() || "Unknown";
                     portToState[d.port] = state;
+                    portToBorder[d.port] = border;
                     if (!statePorts[state]) statePorts[state] = [];
                     statePorts[state].push(d.port);
                 }
@@ -247,8 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Clear previous content
         heatmapDiv.innerHTML = '';
-        svg.innerHTML = '';
-        document.querySelectorAll('.region-col.active, .state-col.active, .connection-line.active')
+        document.querySelectorAll('.region-col.active, .state-col.active')
             .forEach(el => el.classList.remove('active'));
 
         if (selectedYears.length === 0) {
@@ -259,32 +259,48 @@ document.addEventListener("DOMContentLoaded", () => {
         // === Calculate total data columns ===
         const totalCols = viewMode === "byYear" ? selectedYears.length * 12 : 12;
 
-        // === SET GRID ONCE ONLY 
+        // === SET GRID (Region:80px, State:110px, Port:150px, Data:repeat) ===
         heatmapDiv.style.gridTemplateColumns = `80px 110px 150px repeat(${totalCols}, 1fr)`;
         heatmapDiv.style.gridAutoRows = "20px";
 
         const fragment = document.createDocumentFragment();
-        const header = document.createElement('div');
-        header.style.display = 'contents';
-        header.innerHTML = `<div></div><div></div><div></div>`;
-        fragment.appendChild(header);
 
-        // === Year or Month headers ===
+        // === Empty header row (row 1: region, state, port) ===
+        const emptyRegion = document.createElement('div');
+        emptyRegion.style.gridRow = '1';
+        emptyRegion.style.gridColumn = '1';
+        fragment.appendChild(emptyRegion);
+
+        const emptyState = document.createElement('div');
+        emptyState.style.gridRow = '1';
+        emptyState.style.gridColumn = '2';
+        fragment.appendChild(emptyState);
+
+        const emptyPort = document.createElement('div');
+        emptyPort.style.gridRow = '1';
+        emptyPort.style.gridColumn = '3';
+        fragment.appendChild(emptyPort);
+
+        // === Year or Month headers (row 2) ===
         if (viewMode === "byYear") {
+            let colStart = 4;
             selectedYears.forEach(year => {
                 const cell = document.createElement('div');
                 cell.className = 'year-header';
                 cell.textContent = year;
                 cell.style.gridRow = '2';
-                cell.style.gridColumn = 'span 12';
+                cell.style.gridColumn = `${colStart} / span 12`;
                 fragment.appendChild(cell);
+                colStart += 12;
             });
         } else {
+            let col = 4;
             monthOrder.forEach(month => {
                 const cell = document.createElement('div');
                 cell.className = 'month-header';
                 cell.textContent = month;
                 cell.style.gridRow = '2';
+                cell.style.gridColumn = col++;
                 fragment.appendChild(cell);
             });
         }
@@ -303,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const regionLabel = document.createElement('div');
             regionLabel.className = 'region-col';
             regionLabel.textContent = region;
-            regionLabel.style.gridRow = `span ${regionRowSpan}`;
+            regionLabel.style.gridRow = `${currentRow} / span ${regionRowSpan}`;
             regionLabel.style.gridColumn = '1';
             regionLabel.style.cursor = 'pointer';
             if (activeRegion === region) regionLabel.classList.add('active');
@@ -317,9 +333,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderHeatmap();
             };
 
-            // === Region center Y for line ===
-            const regionCenterY = (currentRow - 1) * 20 + (regionRowSpan * 20 / 2) - 10;
-            const regionRightX = 80;
+            const regionBg = regionColors[region] || "#ccc";
+            regionLabel.style.backgroundColor = regionBg;
+            regionLabel.style.color = getContrastColor(regionBg);
+            regionLabel.style.borderRadius = '4px 0 0 4px';
 
             let stateStartRow = currentRow;
 
@@ -341,15 +358,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const rowSpan = portsInState.length;
                     const shouldShowState = !activeState || activeState === state;
 
-                    // === State center Y ===
-                    const stateCenterY = (stateStartRow - 1) * 20 + (rowSpan * 20 / 2) - 10;
-                    const stateRightX = 190;
-
                     // === State Label ===
                     const stateLabel = document.createElement('div');
                     stateLabel.className = 'state-col';
                     stateLabel.textContent = state;
-                    stateLabel.style.gridRow = `span ${rowSpan}`;
+                    stateLabel.style.gridRow = `${stateStartRow} / span ${rowSpan}`;
                     stateLabel.style.gridColumn = '2';
                     stateLabel.style.cursor = 'pointer';
                     if (activeState === state) stateLabel.classList.add('active');
@@ -362,26 +375,20 @@ document.addEventListener("DOMContentLoaded", () => {
                         renderHeatmap();
                     };
 
-                    // === Line: Region → State ===
-                    drawLine(svg, regionRightX, regionCenterY, stateRightX, stateCenterY, `region-${region}`);
+                    const stateBg = regionColors[region] || "#eee";
+                    stateLabel.style.backgroundColor = stateBg;
+                    stateLabel.style.color = getContrastColor(stateBg);
+                    stateLabel.style.borderRadius = '0';
 
                     if (shouldShowState) {
                         portsInState.forEach((port, idx) => {
                             const row = stateStartRow + idx;
-                            const portY = (row - 1) * 20 + 10;
-                            const portRightX = 340;
 
                             // === Port Label ===
                             const portLabel = createPortLabel(port);
                             portLabel.style.gridRow = row;
                             portLabel.style.gridColumn = '3';
                             fragment.appendChild(portLabel);
-
-                            // === Line: State → Port ===
-                            drawLine(svg, stateRightX, stateCenterY, portRightX, portY, `state-${state}`);
-
-                            // === Line: Port → Data ===
-                            drawLine(svg, 490, portY, 520, portY, `port-${port}`);
 
                             // === Data Cells ===
                             let col = 4;
@@ -390,7 +397,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     monthOrder.forEach(month => {
                                         const key = `${port}|${year}|${month}`;
                                         const value = filteredMap[key] || 0;
-                                        appendCell(fragment, value, `${port} | ${month} ${year} | ${value.toLocaleString()}`, minVal, maxVal, col++);
+                                        appendCell(fragment, value, `${port} | ${month} ${year} | ${value.toLocaleString()}`, minVal, maxVal, col++, row);
                                     });
                                 });
                             } else {
@@ -398,7 +405,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     const key = `${port}|${month}`;
                                     const value = filteredMap[key] || 0;
                                     const yearsStr = selectedYears.length > 1 ? ` (${selectedYears.join(', ')})` : ` ${selectedYears[0]}`;
-                                    appendCell(fragment, value, `${port} | ${month}${yearsStr} | ${value.toLocaleString()}`, minVal, maxVal, col++);
+                                    appendCell(fragment, value, `${port} | ${month}${yearsStr} | ${value.toLocaleString()}`, minVal, maxVal, col++, row);
                                 });
                             }
                         });
@@ -414,26 +421,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         heatmapDiv.appendChild(fragment);
-
-        // === Highlight active connections ===
-        if (activeRegion) {
-            document.querySelectorAll(`.connection-line[data-state^="region-${activeRegion}"]`)
-                .forEach(l => l.classList.add('active'));
-        }
-        if (activeState) {
-            document.querySelectorAll(`.connection-line[data-state^="state-${activeState}"]`)
-                .forEach(l => l.classList.add('active'));
-        }
     }
 
     // === HELPER FUNCTIONS ===
 
     // Append heatmap cell with color scale
-    function appendCell(fragment, value, tooltip, minVal, maxVal, col = null) {
+    function appendCell(fragment, value, tooltip, minVal, maxVal, col = null, row = null) {
         const cell = document.createElement('div');
         cell.className = 'cell';
         cell.dataset.tooltip = tooltip;
         if (col) cell.style.gridColumn = col;
+        if (row) cell.style.gridRow = row;
 
         const levels = ['#f0f0f0', '#92eee7ff', '#ebe00fff', '#ee970cff', '#cc0000'];
         const level = value === 0 ? 0 : Math.min(Math.floor((value - minVal) / (maxVal - minVal || 1) * 4) + 1, 4);
@@ -445,20 +443,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function createPortLabel(port) {
         const label = document.createElement('div');
         label.className = 'port-label';
-        label.textContent = port;
-        label.title = port;
+        const border = portToBorder[port] || "Unknown";
+        const country = border.includes("Mexico") ? "Mexico" : border.includes("Canada") ? "Canada" : "Unknown";
+        label.textContent = `${port} (${country})`;
+        label.title = `${port} - ${border}`;
+        
+        const state = portToState[port];
+        const region = stateToRegionMap[state];
+        const bg = regionColors[region] || "#f1f1f1";
+        label.style.backgroundColor = bg;
+        label.style.color = getContrastColor(bg);
+        
         return label;
-    }
-
-    // Draw SVG connection line
-    function drawLine(svg, x1, y1, x2, y2, dataState) {
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", x1);
-        line.setAttribute("y1", y1);
-        line.setAttribute("x2", x2);
-        line.setAttribute("y2", y2);
-        line.setAttribute("class", "connection-line");
-        line.dataset.state = dataState;
-        svg.appendChild(line);
     }
 });

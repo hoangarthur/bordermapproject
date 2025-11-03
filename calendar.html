@@ -36,6 +36,7 @@
         margin-bottom: 18px;
         align-items: center;
       }
+      
       select {
         padding: 6px 14px;
         font-size: 0.95em;
@@ -178,25 +179,55 @@
         z-index: 1;
       }
 
-      /* Cột State*/
+      /* Region column */
+      .region-col {
+        position: sticky;
+        left: 10px;
+        z-index: 80;
+        background: transparent;
+        color: inherit;
+        font-weight: 800;
+        font-size: 12px;
+        padding: 2px 4px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        cursor: pointer;
+        border-right: 1px solid #ddd;
+        border-left: 0px solid #323232ff;
+        transition: all 0.2s;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+        box-sizing: border-box;
+      }
+      .region-col:hover,
+      .region-col.active {
+        background: rgba(214, 51, 132, 0.2) !important;
+        font-weight: 900;
+      }
+
+      /* State column */
       .state-col {
         position: sticky;
         left: 80px;
         z-index: 70;
-        background: transparent !important;
-        color: #080707ff;
+        background: transparent;
+        color: inherit;
         font-weight: 800;
         font-size: 12px;
-        padding: 0 px;
-        text-align: right;
+        padding: 2px 4px;
+        text-align: left;
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        min-width: 110px;
+        width: 110px;
         cursor: pointer;
-        border-right: 2px solid #000000ff;
+        border-right: 1px solid #ddd;
+        border-bottom: 1px solid rgba(255,255,255,0.3);
         transition: all 0.2s;
         text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+        box-sizing: border-box;
       }
       .state-col:hover,
       .state-col.active {
@@ -207,34 +238,22 @@
       /* Port label */
       .port-label {
         position: sticky;
-        left: 120px; /* = width của state-col */
+        left: 190px; /* 10 (padding) + 80 (region) + 110 (state) */
+        right: 10px;
         z-index: 60;
-        background: #343a40;
-        color: white;
         font-weight: 600;
         font-size: 10.5px;
-        padding: 0 8px;
-        text-align: right;
-        min-width: 130px;
+        padding: 2px 4px;
+        text-align: left;
+        width: 150px;
         border-radius: 0 3px 3px 0;
+        border-left: 1px solid #ddd;
         display: flex;
         align-items: center;
-        justify-content: flex-end;
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        justify-content: flex-start;
+        box-sizing: border-box;
       }
 
-      /* Line*/
-      .connection-line {
-        stroke: #111111ff;
-        stroke-width: 1.8;
-        opacity: 0.6;
-        transition: all 0.3s ease;
-      }
-      .connection-line.active {
-        stroke: #e91e622d;
-        stroke-width: 3.5;
-        opacity: 1;
-      }
       .cell {
         border: 1px solid #ddd;
         box-sizing: border-box;
@@ -245,27 +264,11 @@
         background-color: #f7f7f7;
         text-align: center;
         font-weight: 600;
+        color: inherit;
+        box-sizing: border-box;
       }
       .month-header {
         background: #6c757d;
-      }
-      .port-label {
-        background: #343a40;
-        color: white;
-        font-weight: 600;
-        font-size: 10.5px;
-        padding: 0 8px;
-        text-align: right;
-        min-width: 100px;
-        border-radius: 3px;
-        border-right: 0px solid #949494ff;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        position: sticky;
-        left: 0;
-        z-index: 50;
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
       }
 
       .legend {
@@ -298,41 +301,6 @@
         margin: 40px;
         font-size: 1.1em;
       }
-      .connection-line {
-        stroke: #aaa;
-        stroke-width: 1.5;
-        transition: stroke 0.3s, stroke-width 0.3s;
-        pointer-events: none;
-      }
-      .connection-line.active {
-        stroke: #e91e6229;
-        stroke-width: 3;
-      }
-      .region-col {
-        position: sticky;
-        left: 0;
-        z-index: 80;
-        background: transparent !important;
-        color: #070000ff;
-        font-weight: 800;
-        font-size: 12px;
-        padding: 0 10px;
-        text-align: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 60px;
-        cursor: pointer;
-        border-right: 0px solid #444;
-        border-left: 0px solid #323232ff;
-        transition: all 0.2s;
-        text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
-      }
-      .region-col:hover,
-      .region-col.active {
-        background: rgba(214, 51, 132, 0.2) !important;
-        font-weight: 900;
-      }
     </style>
   </head>
   <body>
@@ -341,6 +309,7 @@
       <p class="subtitle">
         Tiny squares = monthly volume • Click Apply to update
       </p>
+
 
       <div class="controls">
         <div>
@@ -381,6 +350,16 @@
         <span>None</span>
         <div class="gradient"></div>
         <span>High</span>
+      </div>
+
+      <div class="legend">
+        <span>Regions:</span>
+        <span style="background:#4dabf7; padding: 2px 6px; border-radius: 4px; color:#000;">Pacific</span>
+        <span style="background:#63e6be; padding: 2px 6px; border-radius: 4px; color:#000;">West</span>
+        <span style="background:#ffd43b; padding: 2px 6px; border-radius: 4px; color:#000;">Northeast</span>
+        <span style="background:#ffa8a8; padding: 2px 6px; border-radius: 4px; color:#000;">Midwest</span>
+        <span style="background:#b197fc; padding: 2px 6px; border-radius: 4px; color:#fff;">South</span>
+        <span style="background:#ccc; padding: 2px 6px; border-radius: 4px; color:#000;">Unknown</span>
       </div>
 
       <div class="heatmap-container">
