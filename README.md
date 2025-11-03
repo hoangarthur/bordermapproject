@@ -1,2 +1,2 @@
 # bordermapproject
-bordermap with heatmap and statemap
+bordermap with heatmap and line chart
