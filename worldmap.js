@@ -1,11 +1,15 @@
-let map, canvasLayer, allData = [], months = [], currentData = [];
+// worldmap.js - FINAL FIX: Month View không còn chồng điểm NỮA!
+let map, canvasLayer, allData = [], timelineData = [], currentData = [];
 let firstLoad = true;
 let allMeasures = new Set();
+let isYearMode = true;
 
 const slider = document.getElementById('yearSlider');
 const currentLabel = document.getElementById('currentMonth');
 const labelsContainer = document.getElementById('monthLabels');
 const measureFilter = document.getElementById('measureFilter');
+const btnYear = document.getElementById('modeYear');
+const btnMonth = document.getElementById('modeMonth');
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
@@ -24,7 +28,7 @@ function initMap() {
             const pane = map.getPanes().overlayPane;
             pane.appendChild(this._canvas);
             this._ctx = this._canvas.getContext('2d');
-            L.DomUtil.addClass(this._canvas, 'leaflet-zoom-hide');
+            L.DomUtil.addClass(this._canvas, 'leaflet-canvas-layer', 'leaflet-zoom-hide');
 
             const resize = () => {
                 const size = map.getSize();
@@ -36,9 +40,7 @@ function initMap() {
             map.on('moveend zoomend viewreset', this._redraw, this);
             this._redraw();
         },
-        onRemove: function(map) {
-            L.DomUtil.remove(this._canvas);
-        },
+        onRemove: function(map) { L.DomUtil.remove(this._canvas); },
         _redraw: () => drawAllPoints()
     });
 
@@ -60,10 +62,9 @@ function loadData() {
                     value: parseInt(row.Value) || 0,
                     lat: parseFloat(row.Latitude),
                     lng: parseFloat(row.Longitude),
-                    port: row["Port Name"]?.trim() || ""
+                    port: row["Port Name"]?.trim() || "Unknown"
                 }));
 
-            // Populate measure filter
             allData.forEach(d => allMeasures.add(d.measure));
             Array.from(allMeasures).sort().forEach(m => {
                 const opt = document.createElement('option');
@@ -72,38 +73,84 @@ function loadData() {
                 measureFilter.appendChild(opt);
             });
 
-            months = [...new Set(allData.map(d => d.date))];
-            months.sort((a, b) => new Date(a) - new Date(b));
-
-            if (months.length === 0) {
-                currentLabel.textContent = "Không có dữ liệu";
-                return;
-            }
-
-            slider.max = months.length - 1;
-            slider.value = 0;
-            createSmartLabels();
-            updateMonth(0);
+            setupTimeline();
         }
     });
 }
 
-// Event listeners
-slider.addEventListener('input', (e) => updateMonth(parseInt(e.target.value)));
-measureFilter.addEventListener('change', () => updateMonth(slider.value));
+btnYear.onclick = () => { isYearMode = true; btnYear.classList.add('active'); btnMonth.classList.remove('active'); setupTimeline(); };
+btnMonth.onclick = () => { isYearMode = false; btnMonth.classList.add('active'); btnYear.classList.remove('active'); setupTimeline(); };
 
-function updateMonth(idx) {
-    const month = months[idx];
+slider.addEventListener('input', () => updateView());
+measureFilter.addEventListener('change', () => updateView());
+
+function setupTimeline() {
+    if (isYearMode) {
+        timelineData = [...new Set(allData.map(d => d.date))];
+        timelineData.sort((a, b) => new Date(a) - new Date(b));
+    } else {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthMap = {};
+
+        allData.forEach(d => {
+            const monthStr = d.date.split(" ")[0];
+            if (!monthMap[monthStr]) monthMap[monthStr] = {};
+            const key = `${d.port}|${d.lat.toFixed(6)}|${d.lng.toFixed(6)}`; // key to avoid duplicates
+            if (!monthMap[monthStr][key]) {
+                monthMap[monthStr][key] = { port: d.port, lat: d.lat, lng: d.lng, byMeasure: {} };
+            }
+            monthMap[monthStr][key].byMeasure[d.measure] = (monthMap[monthStr][key].byMeasure[d.measure] || []).concat(d.value);
+        });
+
+        timelineData = monthNames.map(month => {
+            const ports = monthMap[month] || {};
+            const averagedPorts = Object.values(ports).map(p => {
+                const values = p.byMeasure;
+                let totalValue = 0;
+                let count = 0;
+                Object.values(values).forEach(arr => {
+                    const avg = arr.reduce((a,b) => a+b, 0) / arr.length;
+                    totalValue += avg;
+                    count++;
+                });
+                return {
+                    port: p.port,
+                    lat: p.lat,
+                    lng: p.lng,
+                    value: Math.round(totalValue) //avg all measures
+                };
+            });
+            return { label: month, data: averagedPorts };
+        });
+    }
+
+    slider.max = timelineData.length - 1;
+    slider.value = 0;
+    createSmartLabels();
+    updateView();
+}
+
+function updateView() {
+    const idx = parseInt(slider.value);
     const selectedMeasure = measureFilter.value;
+    let filtered = [];
 
-    let filtered = allData.filter(d => d.date === month);
-    if (selectedMeasure !== 'all') {
+    if (isYearMode) {
+        const monthStr = timelineData[idx];
+        filtered = allData.filter(d => d.date === monthStr);
+        currentLabel.textContent = `${formatDate(monthStr)} — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
+    } else {
+        const monthObj = timelineData[idx];
+        filtered = monthObj.data.map(p => ({ ...p, measure: "All" })); // giả lập measure để filter
+        currentLabel.textContent = `${monthObj.label} (Avg all years) — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
+    }
+
+    // Filter by measure
+    if (selectedMeasure !== 'all' && isYearMode) {
         filtered = filtered.filter(d => d.measure === selectedMeasure);
     }
 
     currentData = filtered;
-    currentLabel.textContent = `${formatDate(month)} — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
-
     drawAllPoints();
 
     if (firstLoad && currentData.length > 0) {
@@ -113,6 +160,7 @@ function updateMonth(idx) {
     }
 }
 
+// Drawing points
 function drawAllPoints() {
     if (!canvasLayer || currentData.length === 0) return;
 
@@ -126,11 +174,9 @@ function drawAllPoints() {
     currentData.forEach(p => {
         const point = map.latLngToContainerPoint([p.lat, p.lng]);
         const ratio = p.value / maxValue;
-
         const maxRings = Math.min(10, 3 + Math.floor(ratio * 8));
         const baseRadius = 5 + ratio * 11;
 
-        // Color gradient from blue to red
         let color;
         if (ratio < 0.25) color = `rgba(0, 150, 255, ${0.15 + ratio * 0.4})`;
         else if (ratio < 0.5) color = `rgba(0, 255, 100, ${0.25 + (ratio - 0.25) * 0.6})`;
@@ -140,37 +186,22 @@ function drawAllPoints() {
         for (let i = maxRings; i >= 1; i--) {
             const r = baseRadius * i;
             const opacity = i === 1 ? 0.9 : (i / maxRings) * 0.3;
-
             ctx.beginPath();
             ctx.arc(point.x, point.y, r, 0, Math.PI * 2);
             ctx.fillStyle = i === 1 ? color.replace(/[\d.]+\)$/, '0.9)') : color.replace(/[\d.]+\)$/, opacity + ')');
             ctx.fill();
-
-            if (i === 1) {
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2.5;
-                ctx.stroke();
-            }
+            if (i === 1) { ctx.strokeStyle = 'white'; ctx.lineWidth = 2.5; ctx.stroke(); }
         }
 
-        // Center point
         ctx.beginPath();
         ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = 'white';
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx.fillStyle = 'white'; ctx.fill();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.stroke();
 
-        // Label zoom
         if (map.getZoom() >= 7 && p.port) {
             ctx.font = 'bold 11px Arial';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.fillStyle = 'white';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
+            ctx.strokeStyle = 'black'; ctx.lineWidth = 3; ctx.fillStyle = 'white';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.strokeText(p.port, point.x, point.y - baseRadius - 8);
             ctx.fillText(p.port, point.x, point.y - baseRadius - 8);
 
@@ -181,26 +212,22 @@ function drawAllPoints() {
     });
 }
 
-// Smart labels & format date 
+// Smart labels & format
 function createSmartLabels() {
     labelsContainer.innerHTML = '';
-    const containerWidth = labelsContainer.parentElement.offsetWidth - 40;
-    const total = months.length;
-    if (total <= 1) return;
+    const w = labelsContainer.parentElement.offsetWidth - 40;
+    const step = w / (timelineData.length - 1);
+    let last = -80;
 
-    const minGap = 70;
-    const step = containerWidth / (total - 1);
-    let lastPos = -minGap;
-
-    months.forEach((month, i) => {
+    timelineData.forEach((item, i) => {
         const pos = i * step;
-        if (i === 0 || i === total - 1 || pos - lastPos >= minGap) {
+        if (i === 0 || i === timelineData.length - 1 || pos - last >= 80) {
             const div = document.createElement('div');
             div.className = 'month-label';
             div.style.left = pos + 'px';
-            div.textContent = month.substring(0, 7);
+            div.textContent = isYearMode ? item.substring(0, 7) : (item.label || item);
             labelsContainer.appendChild(div);
-            lastPos = pos;
+            last = pos;
         }
     });
 }

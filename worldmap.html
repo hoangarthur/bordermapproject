@@ -21,10 +21,10 @@
         #currentMonth {
             font-size: 1.4em; font-weight: bold; color: #d32f2f; margin: 10px 0;
         }
-        select {
-            padding: 8px 12px; font-size: 14px; border-radius: 6px; border: 1px solid #ccc;
-            margin-bottom: 10px;
+        select, button {
+            padding: 8px 14px; margin: 0 8px; font-size: 14px; border-radius: 6px; border: 1px solid #ccc;
         }
+        button.active { background: #1976d2; color: white; }
         .labels-wrapper { position: relative; height: 40px; margin-top: 10px; overflow: hidden; }
         #monthLabels { position: absolute; width: 100%; height: 100%; pointer-events: none; }
         .month-label {
@@ -43,6 +43,12 @@
             <option value="all">All Traffic Types</option>
         </select>
     </div>
+
+    <div style="margin: 10px 0;">
+        <button id="modeYear" class="active">Year View</button>
+        <button id="modeMonth">Month View (Average)</button>
+    </div>
+
     <div id="currentMonth">Loading...</div>
     <input type="range" id="yearSlider" min="0" max="100" value="0" step="1"/>
     <div class="labels-wrapper">
