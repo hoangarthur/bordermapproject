@@ -1,5 +1,3 @@
-// script.js - Phiên bản ĐẸP + NHỎ + NHIỀU MÀU (Hoang's final version ❤️)
-
 let map, canvasLayer, allData = [], months = [], currentData = [];
 let firstLoad = true;
 
@@ -95,8 +93,6 @@ function updateMonth(idx) {
         firstLoad = false;
     }
 }
-
-// ============ HÀM VẼ ĐẸP NHẤT TỪ TRƯỚC ĐẾN NAY ============
 function drawAllPoints() {
     if (!canvasLayer || currentData.length === 0) return;
 
@@ -105,25 +101,25 @@ function drawAllPoints() {
     L.DomUtil.setPosition(canvasLayer._canvas, topLeft);
     ctx.clearRect(0, 0, canvasLayer._canvas.width, canvasLayer._canvas.height);
 
-    // Tìm giá trị lớn nhất trong tháng hiện tại để scale màu
+    // find max value for scaling
     const maxValue = Math.max(...currentData.map(p => p.value), 1000);
 
     currentData.forEach(p => {
         const point = map.latLngToContainerPoint([p.lat, p.lng]);
         const ratio = p.value / maxValue; // 0 → 1
 
-        // Scale số vòng tròn & kích thước theo giá trị (nhỏ gọn hơn rất nhiều)
+        // Scale cicle size
         const maxRings = Math.min(10, 3 + Math.floor(ratio * 8));
         const baseRadius = 5 + ratio * 11; // từ 5px → max ~16px
 
-        // Chọn màu theo tỷ lệ (xanh → vàng → cam → đỏ)
+        // Color choosing based on ratio
         let color;
         if (ratio < 0.25) color = `rgba(0, 150, 255, ${0.15 + ratio * 0.4})`;       // xanh dương
         else if (ratio < 0.5) color = `rgba(0, 255, 100, ${0.25 + (ratio - 0.25) * 0.6})`; // xanh lá
         else if (ratio < 0.75) color = `rgba(255, 220, 0, ${0.35 + (ratio - 0.5) * 0.7})`;  // vàng
         else color = `rgba(255, 50, 50, ${0.45 + (ratio - 0.75) * 0.8})`;         // đỏ
 
-        // Vẽ các vòng từ ngoài vào trong
+        // draw rings
         for (let i = maxRings; i >= 1; i--) {
             const r = baseRadius * i;
             const opacity = i === 1 ? 0.9 : (i / maxRings) * 0.3;
@@ -140,7 +136,7 @@ function drawAllPoints() {
             }
         }
 
-        // Tâm trắng sáng (luôn thấy rõ vị trí chính xác)
+        // draw center point
         ctx.beginPath();
         ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
         ctx.fillStyle = 'white';
@@ -149,7 +145,7 @@ function drawAllPoints() {
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Hiện tên + giá trị khi zoom gần
+        // draw labels if zoomed in enough
         if (map.getZoom() >= 7 && p.port) {
             ctx.font = 'bold 11px Arial';
             ctx.strokeStyle = 'black';
@@ -168,7 +164,7 @@ function drawAllPoints() {
     });
 }
 
-// Smart Labels & formatDate giữ nguyên như cũ
+// Smart Labels & formatDate
 function createSmartLabels() {
     labelsContainer.innerHTML = '';
     const containerWidth = labelsContainer.parentElement.offsetWidth - 40;
