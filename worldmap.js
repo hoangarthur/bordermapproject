@@ -106,7 +106,7 @@ function setupTimeline() {
         const yearMap = {};
 
         allData.forEach(d => {
-            const year = d.date.split(" ")[1]; // "2024" from "Jan 2024"
+            const year = d.date.split(" ")[1]; // "2024" 
             if (!yearMap[year]) yearMap[year] = {};
 
             const key = `${d.port}|${d.lat.toFixed(6)}|${d.lng.toFixed(6)}`;
@@ -254,21 +254,19 @@ function createSmartLabels() {
     labelsContainer.innerHTML = '';
     if (timelineData.length === 0) return;
 
-    const w = labelsContainer.parentElement.offsetWidth - 40;
-    const step = w / (timelineData.length - 1);
-    let last = -100;
+    const first = timelineData[0];
+    const last  = timelineData[timelineData.length - 1];
 
-    timelineData.forEach((item, i) => {
-        const pos = i * step;
-        if (i === 0 || i === timelineData.length - 1 || pos - last >= 100) {
-            const div = document.createElement('div');
-            div.className = 'month-label';
-            div.style.left = pos + 'px';
-            div.textContent = item.label;
-            labelsContainer.appendChild(div);
-            last = pos;
-        }
-    });
+    const divFirst = document.createElement('div');
+    divFirst.className = 'month-label';
+    divFirst.textContent = first.label;
+    labelsContainer.appendChild(divFirst);
+
+    const divLast = document.createElement('div');
+    divLast.className = 'month-label';
+    divLast.textContent = last.label;
+    labelsContainer.appendChild(divLast);
+
 }
 
 window.addEventListener('resize', () => setTimeout(createSmartLabels, 200));
