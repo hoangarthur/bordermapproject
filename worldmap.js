@@ -1,4 +1,4 @@
-// worldmap.js - FINAL FIX: Month View không còn chồng điểm NỮA!
+// worldmap.js
 let map, canvasLayer, allData = [], timelineData = [], currentData = [];
 let firstLoad = true;
 let allMeasures = new Set();
@@ -10,7 +10,13 @@ const labelsContainer = document.getElementById('monthLabels');
 const measureFilter = document.getElementById('measureFilter');
 const btnYear = document.getElementById('modeYear');
 const btnMonth = document.getElementById('modeMonth');
-
+const ALLOWED_MEASURES = [
+    "Trains",
+    "Buses", 
+    "Trucks",
+    "Pedestrians",
+    "Personal Vehicles"
+];
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     loadData();
@@ -63,10 +69,14 @@ function loadData() {
                     lat: parseFloat(row.Latitude),
                     lng: parseFloat(row.Longitude),
                     port: row["Port Name"]?.trim() || "Unknown"
-                }));
+                }))
 
-            allData.forEach(d => allMeasures.add(d.measure));
-            Array.from(allMeasures).sort().forEach(m => {
+                .filter(d => ALLOWED_MEASURES.includes(d.measure));
+
+            measureFilter.innerHTML = '<option value="all">All Types</option>';
+
+            // Thêm đúng 5 loại theo thứ tự đẹp
+            ALLOWED_MEASURES.forEach(m => {
                 const opt = document.createElement('option');
                 opt.value = m;
                 opt.textContent = m;
@@ -141,7 +151,7 @@ function updateView() {
         currentLabel.textContent = `${formatDate(monthStr)} — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
     } else {
         const monthObj = timelineData[idx];
-        filtered = monthObj.data.map(p => ({ ...p, measure: "All" })); // giả lập measure để filter
+        filtered = monthObj.data.map(p => ({ ...p, measure: "All" })); 
         currentLabel.textContent = `${monthObj.label} (Avg all years) — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
     }
 
