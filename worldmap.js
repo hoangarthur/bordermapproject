@@ -1,8 +1,7 @@
-// worldmap.js
+// worldmap.js - Updated for Yearly Total + Monthly Average
 let map, canvasLayer, allData = [], timelineData = [], currentData = [];
 let firstLoad = true;
-let allMeasures = new Set();
-let isYearMode = true;
+let isYearMode = true; // true = Yearly total, false = Monthly average
 
 const slider = document.getElementById('yearSlider');
 const currentLabel = document.getElementById('currentMonth');
@@ -10,13 +9,10 @@ const labelsContainer = document.getElementById('monthLabels');
 const measureFilter = document.getElementById('measureFilter');
 const btnYear = document.getElementById('modeYear');
 const btnMonth = document.getElementById('modeMonth');
-const ALLOWED_MEASURES = [
-    "Trains",
-    "Buses", 
-    "Trucks",
-    "Pedestrians",
-    "Personal Vehicles"
-];
+
+const ALLOWED_MEASURES = ["Trains", "Buses", "Trucks", "Pedestrians", "Personal Vehicles"];
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     loadData();
@@ -34,7 +30,6 @@ function initMap() {
             const pane = map.getPanes().overlayPane;
             pane.appendChild(this._canvas);
             this._ctx = this._canvas.getContext('2d');
-            L.DomUtil.addClass(this._canvas, 'leaflet-canvas-layer', 'leaflet-zoom-hide');
 
             const resize = () => {
                 const size = map.getSize();
@@ -61,25 +56,22 @@ function loadData() {
         skipEmptyLines: true,
         complete: function(results) {
             allData = results.data
-                .filter(row => row.Date && row.Value && row.Latitude && row.Longitude)
+                .filter(row => row.Date && row.Value && row.Latitude && row.Longitude && row.Measure)
                 .map(row => ({
-                    date: row.Date.trim(),
-                    measure: row.Measure?.trim() || "Unknown",
+                    date: row.Date.trim(),           // "Jan 2024"
+                    measure: row.Measure.trim(),
                     value: parseInt(row.Value) || 0,
                     lat: parseFloat(row.Latitude),
                     lng: parseFloat(row.Longitude),
                     port: row["Port Name"]?.trim() || "Unknown"
                 }))
-
                 .filter(d => ALLOWED_MEASURES.includes(d.measure));
 
+            // Setup dropdown
             measureFilter.innerHTML = '<option value="all">All Types</option>';
-
-            // Thêm đúng 5 loại theo thứ tự đẹp
             ALLOWED_MEASURES.forEach(m => {
                 const opt = document.createElement('option');
-                opt.value = m;
-                opt.textContent = m;
+                opt.value = m; opt.textContent = m;
                 measureFilter.appendChild(opt);
             });
 
@@ -88,54 +80,90 @@ function loadData() {
     });
 }
 
-btnYear.onclick = () => { isYearMode = true; btnYear.classList.add('active'); btnMonth.classList.remove('active'); setupTimeline(); };
-btnMonth.onclick = () => { isYearMode = false; btnMonth.classList.add('active'); btnYear.classList.remove('active'); setupTimeline(); };
+// Mode buttons
+btnYear.onclick = () => {
+    isYearMode = true;
+    btnYear.classList.add('active');
+    btnMonth.classList.remove('active');
+    setupTimeline();
+};
 
-slider.addEventListener('input', () => updateView());
-measureFilter.addEventListener('change', () => updateView());
+btnMonth.onclick = () => {
+    isYearMode = false;
+    btnMonth.classList.add('active');
+    btnYear.classList.remove('active');
+    setupTimeline();
+};
+
+slider.addEventListener('input', updateView);
+measureFilter.addEventListener('change', setupTimeline); // Rebuild when changing type
 
 function setupTimeline() {
+    const selectedMeasure = measureFilter.value;
+
     if (isYearMode) {
-        timelineData = [...new Set(allData.map(d => d.date))];
-        timelineData.sort((a, b) => new Date(a) - new Date(b));
+        // YEAR MODE: Group by year → sum all months
+        const yearMap = {};
+
+        allData.forEach(d => {
+            const year = d.date.split(" ")[1]; // "2024" from "Jan 2024"
+            if (!yearMap[year]) yearMap[year] = {};
+
+            const key = `${d.port}|${d.lat.toFixed(6)}|${d.lng.toFixed(6)}`;
+            if (!yearMap[year][key]) {
+                yearMap[year][key] = { port: d.port, lat: d.lat, lng: d.lng, byMeasure: {} };
+            }
+            yearMap[year][key].byMeasure[d.measure] = (yearMap[year][key].byMeasure[d.measure] || 0) + d.value;
+        });
+
+        timelineData = Object.keys(yearMap)
+            .sort()
+            .map(year => {
+                const ports = Object.values(yearMap[year]).map(p => {
+                    const total = selectedMeasure === 'all'
+                        ? Object.values(p.byMeasure).reduce((a,b) => a + b, 0)
+                        : (p.byMeasure[selectedMeasure] || 0);
+                    return { year, port: p.port, lat: p.lat, lng: p.lng, value: total, byMeasure: p.byMeasure };
+                }).filter(p => p.value > 0);
+                return { label: year, data: ports };
+            });
+
     } else {
-        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        // MONTH MODE: Average across all years for each month
         const monthMap = {};
 
         allData.forEach(d => {
-            const monthStr = d.date.split(" ")[0];
-            if (!monthMap[monthStr]) monthMap[monthStr] = {};
-            const key = `${d.port}|${d.lat.toFixed(6)}|${d.lng.toFixed(6)}`; // key to avoid duplicates
-            if (!monthMap[monthStr][key]) {
-                monthMap[monthStr][key] = { port: d.port, lat: d.lat, lng: d.lng, byMeasure: {} };
+            const monthName = d.date.split(" ")[0]; // "Jan"
+            if (!monthMap[monthName]) monthMap[monthName] = {};
+
+            const key = `${d.port}|${d.lat.toFixed(6)}|${d.lng.toFixed(6)}`;
+            if (!monthMap[monthName][key]) {
+                monthMap[monthName][key] = { port: d.port, lat: d.lat, lng: d.lng, counts: {}, total: {} };
             }
-            monthMap[monthStr][key].byMeasure[d.measure] = (monthMap[monthStr][key].byMeasure[d.measure] || []).concat(d.value);
+            const m = d.measure;
+            monthMap[monthName][key].counts[m] = (monthMap[monthName][key].counts[m] || 0) + 1;
+            monthMap[monthName][key].total[m]  = (monthMap[monthName][key].total[m]  || 0) + d.value;
         });
 
-        timelineData = monthNames.map(month => {
+        timelineData = MONTH_NAMES.map(month => {
             const ports = monthMap[month] || {};
-            const averagedPorts = Object.values(ports).map(p => {
-                const values = p.byMeasure;
-                let totalValue = 0;
-                let count = 0;
-                Object.values(values).forEach(arr => {
-                    const avg = arr.reduce((a,b) => a+b, 0) / arr.length;
-                    totalValue += avg;
-                    count++;
-                });
-                return {
-                    port: p.port,
-                    lat: p.lat,
-                    lng: p.lng,
-                    value: Math.round(totalValue) //avg all measures
-                };
-            });
-            return { label: month, data: averagedPorts };
+            const averaged = Object.values(ports).map(p => {
+                let avg = 0;
+                if (selectedMeasure === 'all') {
+                    avg = Object.keys(p.total).reduce((sum, m) => sum + (p.total[m] / p.counts[m]), 0);
+                } else {
+                    avg = p.total[selectedMeasure] ? p.total[selectedMeasure] / p.counts[selectedMeasure] : 0;
+                }
+                return { month, port: p.port, lat: p.lat, lng: p.lng, value: Math.round(avg) };
+            }).filter(p => p.value > 0);
+            return { label: month, data: averaged };
         });
     }
 
+    // Slider setup
+    slider.min = 0;
     slider.max = timelineData.length - 1;
-    slider.value = 0;
+    slider.value = isYearMode ? timelineData.length - 1 : 0; // Latest year or January
     createSmartLabels();
     updateView();
 }
@@ -143,24 +171,26 @@ function setupTimeline() {
 function updateView() {
     const idx = parseInt(slider.value);
     const selectedMeasure = measureFilter.value;
-    let filtered = [];
+    const item = timelineData[idx];
 
-    if (isYearMode) {
-        const monthStr = timelineData[idx];
-        filtered = allData.filter(d => d.date === monthStr);
-        currentLabel.textContent = `${formatDate(monthStr)} — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
-    } else {
-        const monthObj = timelineData[idx];
-        filtered = monthObj.data.map(p => ({ ...p, measure: "All" })); 
-        currentLabel.textContent = `${monthObj.label} (Avg all years) — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
+    if (!item) {
+        currentData = [];
+        drawAllPoints();
+        return;
     }
 
-    // Filter by measure
-    if (selectedMeasure !== 'all' && isYearMode) {
-        filtered = filtered.filter(d => d.measure === selectedMeasure);
-    }
+    currentData = item.data.map(p => ({
+        port: p.port,
+        lat: p.lat,
+        lng: p.lng,
+        value: selectedMeasure === 'all'
+            ? Object.values(p.byMeasure || {}).reduce((a,b) => a+b, 0) || p.value
+            : (p.byMeasure?.[selectedMeasure] || 0) || p.value
+    })).filter(p => p.value > 0);
 
-    currentData = filtered;
+    const modeText = isYearMode ? "Annual Total" : "Monthly Average (all years)";
+    currentLabel.textContent = `${item.label} (${modeText}) — ${selectedMeasure === 'all' ? 'All Types' : selectedMeasure}`;
+
     drawAllPoints();
 
     if (firstLoad && currentData.length > 0) {
@@ -169,8 +199,6 @@ function updateView() {
         firstLoad = false;
     }
 }
-
-// Drawing points
 function drawAllPoints() {
     if (!canvasLayer || currentData.length === 0) return;
 
@@ -222,29 +250,25 @@ function drawAllPoints() {
     });
 }
 
-// Smart labels & format
 function createSmartLabels() {
     labelsContainer.innerHTML = '';
+    if (timelineData.length === 0) return;
+
     const w = labelsContainer.parentElement.offsetWidth - 40;
     const step = w / (timelineData.length - 1);
-    let last = -80;
+    let last = -100;
 
     timelineData.forEach((item, i) => {
         const pos = i * step;
-        if (i === 0 || i === timelineData.length - 1 || pos - last >= 80) {
+        if (i === 0 || i === timelineData.length - 1 || pos - last >= 100) {
             const div = document.createElement('div');
             div.className = 'month-label';
             div.style.left = pos + 'px';
-            div.textContent = isYearMode ? item.substring(0, 7) : (item.label || item);
+            div.textContent = item.label;
             labelsContainer.appendChild(div);
             last = pos;
         }
     });
-}
-
-function formatDate(str) {
-    const d = new Date(str);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
 }
 
 window.addEventListener('resize', () => setTimeout(createSmartLabels, 200));
